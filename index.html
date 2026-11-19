@@ -3,36 +3,35 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Handshake Control · Maker Space</title>
+<title>Handshake Control · Makerspace</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{
     --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --line:#2a2f3a;
-    --text:#e8eaf0; --mute:#8b93a5; --accent:#ffb000; --ok:#2ecc71; --bad:#ff5a5f;
+    --text:#e8eaf0; --mute:#8b93a5; --accent:#ffb000; --ok:#2ecc71; --bad:#ff5a5f; --warn:#ffb000;
     --soft:#5aa9ff; --nice:#2ecc71; --strong:#ffb000; --hard:#ff5a5f;
     --r:14px;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 "Space Grotesk",system-ui,sans-serif}
   .mono{font-family:"JetBrains Mono",ui-monospace,monospace}
-  header{display:flex;align-items:center;gap:16px;padding:18px 24px;border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(15,17,21,.92);backdrop-filter:blur(8px);z-index:5;flex-wrap:wrap}
-  header h1{font-size:20px;margin:0;font-weight:700;letter-spacing:.2px}
+  header{display:flex;align-items:center;gap:12px;padding:16px 24px;border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(15,17,21,.92);backdrop-filter:blur(8px);z-index:5;flex-wrap:wrap}
+  header h1{font-size:20px;margin:0;font-weight:700}
   header h1 span{color:var(--accent)}
   .pill{display:inline-flex;align-items:center;gap:8px;padding:5px 12px;border-radius:99px;background:var(--panel2);border:1px solid var(--line);font-size:13px;color:var(--mute)}
-  .dot{width:9px;height:9px;border-radius:50%;background:var(--mute)}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--mute);flex-shrink:0}
   .dot.on{background:var(--ok);box-shadow:0 0 10px var(--ok)}
   .dot.off{background:var(--bad)}
   .spacer{flex:1}
-  main{max-width:1200px;margin:0 auto;padding:22px;display:grid;grid-template-columns:1.1fr .9fr;gap:20px}
-  @media(max-width:900px){main{grid-template-columns:1fr;padding:14px}}
+  main{max-width:1240px;margin:0 auto;padding:22px;display:grid;grid-template-columns:1.1fr .9fr;gap:20px}
+  @media(max-width:920px){main{grid-template-columns:1fr;padding:14px}}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px}
-  .card h2{font-size:13px;text-transform:uppercase;letter-spacing:1.4px;color:var(--mute);margin:0 0 14px;font-weight:500;display:flex;align-items:center;gap:10px}
+  .card h2{font-size:13px;text-transform:uppercase;letter-spacing:1.4px;color:var(--mute);margin:0 0 14px;font-weight:500;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   .card h2 .right{margin-left:auto;text-transform:none;letter-spacing:0}
-  .stack{display:flex;flex-direction:column;gap:20px}
+  .stack{display:flex;flex-direction:column;gap:20px;min-width:0}
 
-  /* power */
   .power{display:flex;align-items:center;gap:18px}
   .big-toggle{flex-shrink:0;width:92px;height:48px;border-radius:99px;border:none;background:var(--panel2);position:relative;cursor:pointer;transition:.25s;outline:1px solid var(--line)}
   .big-toggle::after{content:"";position:absolute;top:5px;left:5px;width:38px;height:38px;border-radius:50%;background:#555c6b;transition:.25s}
@@ -41,69 +40,98 @@
   .power .label{font-size:22px;font-weight:700}
   .power .sub{color:var(--mute);font-size:13px}
 
-  /* live */
   .state-badge{font-size:30px;font-weight:700;letter-spacing:.5px}
-  .live-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px}
+  .live-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
   @media(max-width:560px){.live-grid{grid-template-columns:repeat(2,1fr)}}
-  .stat{background:var(--panel2);border-radius:10px;padding:10px 12px}
+  .stat{background:var(--panel2);border-radius:10px;padding:10px 12px;min-width:0}
   .stat .k{font-size:12px;color:var(--mute)}
-  .stat .v{font-size:20px;font-weight:600}
+  .stat .v{font-size:19px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .alert{margin-top:12px;padding:10px 12px;border-radius:10px;border:1px solid var(--bad);background:rgba(255,90,95,.08);font-size:13px;display:none}
   .meter{margin-top:16px}
   .meter .row{display:flex;justify-content:space-between;font-size:13px;color:var(--mute);margin-bottom:6px}
   .bar{position:relative;height:16px;border-radius:8px;background:var(--panel2);overflow:hidden}
-  .bar .fill{position:absolute;inset:0 auto 0 0;width:0;background:var(--text);border-radius:8px;transition:width .3s}
+  .bar .fill{position:absolute;inset:0 auto 0 0;width:0;border-radius:8px;transition:width .3s}
   .bar .mark{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--accent)}
   .zones{display:flex;height:100%;opacity:.28}
   .zones div{height:100%}
   .force-wrap{position:relative}
   .force-wrap .needle{position:absolute;top:-4px;bottom:-4px;width:4px;border-radius:2px;background:#fff;transition:left .3s;box-shadow:0 0 8px #fff}
+  .force-wrap .thr{position:absolute;top:-6px;bottom:-6px;width:2px;background:#c39bff}
 
-  /* settings */
   .group{border-top:1px solid var(--line);padding-top:14px;margin-top:14px}
-  .group:first-of-type{border-top:none;margin-top:0;padding-top:0}
-  .group h3{margin:0 0 10px;font-size:15px;font-weight:600}
+  .group.first{border-top:none;margin-top:0;padding-top:0}
+  .group h3{margin:0 0 10px;font-size:15px;font-weight:600;display:flex;align-items:center;gap:10px}
   .field{display:grid;grid-template-columns:170px 1fr 78px;align-items:center;gap:12px;margin:10px 0}
   @media(max-width:560px){.field{grid-template-columns:1fr 70px}.field input[type=range]{grid-column:1/3;grid-row:2}}
-  .field label{font-size:14px;color:var(--text)}
+  .field label{font-size:14px}
   .field small{display:block;color:var(--mute);font-size:12px}
   input[type=range]{width:100%;accent-color:var(--accent)}
-  input[type=number],input[type=password],input[type=text]{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:7px 9px;width:100%;font:inherit;font-family:"JetBrains Mono",monospace;font-size:14px}
+  input[type=number],input[type=password],input[type=text],select{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:7px 9px;width:100%;font:inherit;font-size:14px}
+  input[type=number]{font-family:"JetBrains Mono",monospace}
   .btn{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:9px;padding:8px 14px;font:inherit;font-size:14px;cursor:pointer}
   .btn:hover{border-color:var(--mute)}
+  .btn:disabled{opacity:.4;cursor:default}
   .btn.primary{background:var(--accent);color:#1a1300;border-color:var(--accent);font-weight:700}
-  .btn.primary:disabled{opacity:.4;cursor:default}
+  .btn.danger{border-color:rgba(255,90,95,.5);color:#ff8a8d}
   .btn.small{padding:5px 10px;font-size:12px}
-  .actions{display:flex;gap:10px;align-items:center;margin-top:18px;flex-wrap:wrap}
+  .actions{display:flex;gap:10px;align-items:center;margin-top:16px;flex-wrap:wrap}
   .hint{color:var(--mute);font-size:13px}
-  .switch{display:flex;align-items:center;gap:10px;margin:10px 0}
+
+  .toggles{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  @media(max-width:560px){.toggles{grid-template-columns:1fr}}
+  .tg{display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--panel2);border-radius:10px;cursor:pointer;user-select:none}
+  .tg input{display:none}
+  .tg .sw{flex-shrink:0;width:38px;height:22px;border-radius:99px;background:#3a404d;position:relative;transition:.2s}
+  .tg .sw::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#8b93a5;transition:.2s}
+  .tg input:checked + .sw{background:rgba(46,204,113,.35)}
+  .tg input:checked + .sw::after{left:19px;background:var(--ok)}
+  .tg b{font-weight:600;font-size:14px;display:block}
+  .tg small{color:var(--mute);font-size:12px;display:block;line-height:1.3}
   .zone-preview{display:flex;height:22px;border-radius:6px;overflow:hidden;margin:8px 0 4px;font-size:11px;font-weight:600;color:#000}
   .zone-preview div{display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden;transition:width .2s}
-  .cal-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+  .cal-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;align-items:center}
 
-  /* events */
   .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
   .dist{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--panel2);margin-bottom:6px}
-  .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--mute);margin-bottom:14px}
+  .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--mute)}
   .legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px}
-  .feed{max-height:520px;overflow:auto;display:flex;flex-direction:column;gap:6px}
-  .ev{display:grid;grid-template-columns:64px 92px 1fr;gap:10px;align-items:center;padding:8px 10px;background:var(--panel2);border-radius:9px;font-size:13px}
+  .feed{max-height:420px;overflow:auto;display:flex;flex-direction:column;gap:6px}
+  .ev{display:grid;grid-template-columns:72px 92px 1fr;gap:10px;align-items:center;padding:8px 10px;background:var(--panel2);border-radius:9px;font-size:13px}
   .ev.new{animation:flash 1.2s}
   @keyframes flash{from{background:rgba(255,176,0,.25)}to{background:var(--panel2)}}
   .ev .t{color:var(--mute)}
   .tag{font-weight:600;font-size:12px;padding:2px 8px;border-radius:99px;background:#2a2f3a;text-align:center}
   .tag.approach{color:#5aa9ff}.tag.hold_start{color:#ffb000}.tag.release{color:#c39bff}
-  .tag.verdict{color:#2ecc71}.tag.timeout,.tag.disabled{color:#ff5a5f}.tag.enabled{color:#2ecc71}
+  .tag.verdict{color:#2ecc71}.tag.timeout,.tag.disabled{color:#ff5a5f}.tag.enabled{color:#2ecc71}.tag.boot{color:#e8eaf0}
   .filters{display:flex;gap:6px;flex-wrap:wrap}
   .chip{font-size:12px;padding:3px 9px;border-radius:99px;border:1px solid var(--line);background:none;color:var(--mute);cursor:pointer}
   .chip.on{color:var(--text);border-color:var(--accent)}
+
+  .checks{display:flex;flex-direction:column;gap:6px;margin-top:12px}
+  .chk{display:grid;grid-template-columns:22px 1fr;gap:8px;padding:9px 11px;background:var(--panel2);border-radius:9px;font-size:13px}
+  .chk .ic{font-weight:700;text-align:center}
+  .chk.pass .ic{color:var(--ok)} .chk.warn .ic{color:var(--warn)} .chk.fail .ic{color:var(--bad)} .chk.info .ic{color:var(--soft)}
+  .chk b{font-weight:600}
+  .chk .fix{color:var(--mute);margin-top:2px}
+  .clips{display:flex;gap:6px;flex-wrap:wrap}
+  .clips .btn{min-width:40px}
+  .running{display:flex;align-items:center;gap:10px;margin-top:10px;font-size:13px;color:var(--accent)}
+  .spin{width:14px;height:14px;border:2px solid var(--accent);border-right-color:transparent;border-radius:50%;animation:sp 1s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
   pre{background:#0b0d10;border:1px solid var(--line);border-radius:10px;padding:12px;overflow:auto;font-size:12px;margin:8px 0}
   details summary{cursor:pointer;color:var(--mute)}
-  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--panel2);border:1px solid var(--line);padding:10px 18px;border-radius:10px;transition:.3s;z-index:20}
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(90px);background:var(--panel2);border:1px solid var(--line);padding:10px 18px;border-radius:10px;transition:.3s;z-index:40}
   .toast.show{transform:translateX(-50%) translateY(0)}
   .toast.err{border-color:var(--bad)}
-  .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:30}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;z-index:30;padding:14px}
   .modal.show{display:flex}
-  .modal .card{width:min(360px,92vw)}
+  .modal .card{width:min(420px,100%)}
+  .wiz-step{display:flex;gap:12px;align-items:flex-start;padding:12px;border-radius:10px;background:var(--panel2);margin-bottom:8px;opacity:.5}
+  .wiz-step.active{opacity:1;outline:1px solid var(--accent)}
+  .wiz-step.done{opacity:1}
+  .wiz-step .n{width:26px;height:26px;border-radius:50%;background:var(--line);display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0}
+  .wiz-step.done .n{background:var(--ok);color:#000}
+  .wiz-res{font-size:13px;color:var(--mute);margin-top:4px}
 </style>
 </head>
 <body>
@@ -123,7 +151,7 @@
         <button class="big-toggle" id="powerBtn" aria-label="System on/off"></button>
         <div>
           <div class="label" id="powerLabel">—</div>
-          <div class="sub" id="powerSub">Turning off stops sound and events. The heartbeat keeps running.</div>
+          <div class="sub">Off = no sound, no reaction, no events. The device stays online.</div>
         </div>
       </div>
     </section>
@@ -134,17 +162,23 @@
       <div class="live-grid">
         <div class="stat"><div class="k">Distance</div><div class="v mono" id="lvDist">—</div></div>
         <div class="stat"><div class="k">Grip force</div><div class="v mono" id="lvForce">—</div></div>
-        <div class="stat"><div class="k">Raw ADC</div><div class="v mono" id="lvRaw">—</div></div>
+        <div class="stat"><div class="k">Raw AO</div><div class="v mono" id="lvRaw">—</div></div>
         <div class="stat"><div class="k">Hand</div><div class="v" id="lvHand">—</div></div>
+        <div class="stat"><div class="k">DO pin</div><div class="v mono" id="lvDo">—</div></div>
+        <div class="stat"><div class="k">Audio</div><div class="v" id="lvAudio">—</div></div>
+        <div class="stat"><div class="k">WiFi</div><div class="v mono" id="lvRssi">—</div></div>
+        <div class="stat"><div class="k">Uptime</div><div class="v mono" id="lvUp">—</div></div>
       </div>
+      <div class="alert" id="lvError"></div>
       <div class="meter">
         <div class="row"><span>Distance (0–150 cm)</span><span>trigger ≤ <b id="mkApproach">—</b> cm</span></div>
         <div class="bar"><div class="fill" id="distFill" style="background:#5aa9ff"></div><div class="mark" id="distMark"></div></div>
       </div>
       <div class="meter">
-        <div class="row"><span>Grip force vs verdict zones</span><span id="liveVerdict"></span></div>
+        <div class="row"><span>Grip force vs verdict zones <span id="thrLegend" style="color:#c39bff"></span></span><span id="liveVerdict"></span></div>
         <div class="force-wrap">
           <div class="bar"><div class="zones" id="liveZones"></div></div>
+          <div class="thr" id="thrMark" style="display:none"></div>
           <div class="needle" id="forceNeedle" style="left:0"></div>
         </div>
       </div>
@@ -153,24 +187,45 @@
     <section class="card">
       <h2>Settings <span class="right hint" id="dirtyHint"></span></h2>
 
-      <div class="group">
-        <h3>Detection</h3>
-        <div class="field"><label>Approach distance<small>Ultrasonic trigger range</small></label>
-          <input type="range" min="5" max="150" data-k="approach_cm"><input type="number" data-k="approach_cm"></div>
+      <div class="group first">
+        <h3>Functions</h3>
+        <div class="toggles">
+          <label class="tg"><input type="checkbox" data-k="ultrasonic_enabled"><span class="sw"></span><span><b>Ultrasonic detection</b><small>Notice people walking up</small></span></label>
+          <label class="tg"><input type="checkbox" data-k="greeting_enabled"><span class="sw"></span><span><b>Greeting</b><small>Play welcome when someone walks up</small></span></label>
+          <label class="tg"><input type="checkbox" data-k="direct_press_enabled"><span class="sw"></span><span><b>Start by pressing</b><small>Handshake without walking up first</small></span></label>
+          <label class="tg"><input type="checkbox" data-k="nudge_enabled"><span class="sw"></span><span><b>Nudge</b><small>Reminder if nobody shakes</small></span></label>
+          <label class="tg"><input type="checkbox" data-k="verdict_enabled"><span class="sw"></span><span><b>Grip verdict sound</b><small>Too soft / nice / strong / too hard</small></span></label>
+          <label class="tg"><input type="checkbox" data-k="goodbye_enabled"><span class="sw"></span><span><b>Goodbye</b><small>Play goodbye after the verdict</small></span></label>
+          <label class="tg"><input type="checkbox" data-k="audio_enabled"><span class="sw"></span><span><b>All sound</b><small>Master switch for every clip</small></span></label>
+          <label class="tg"><input type="checkbox" data-k="log_events"><span class="sw"></span><span><b>Send events</b><small>Log to Supabase for other systems</small></span></label>
+        </div>
       </div>
 
       <div class="group">
-        <h3>Grip calibration</h3>
-        <div class="hint">Raw ADC 0–4095. Leave the sensor untouched and press “Set resting”, then squeeze as hard as you can and press “Set full squeeze”.</div>
+        <h3>Grip sensor <button class="btn small primary" id="wizBtn">✨ Auto-calibrate</button></h3>
+        <div class="field"><label>Press detected by<small>which signal means “hand on”</small></label>
+          <select data-k="press_source" style="grid-column:2/4">
+            <option value="ao">Analog force above threshold (most reliable on 3.3V)</option>
+            <option value="do_low">DO pin LOW (module LED on)</option>
+            <option value="do_high">DO pin HIGH</option>
+          </select></div>
+        <div class="field" id="thrField"><label>Press threshold<small>% force that counts as a press</small></label>
+          <input type="range" min="1" max="60" data-k="press_threshold_pct"><input type="number" data-k="press_threshold_pct"></div>
         <div class="field"><label>Resting raw<small>No hand on sensor</small></label>
           <input type="range" min="0" max="4095" data-k="no_press_raw"><input type="number" data-k="no_press_raw"></div>
         <div class="field"><label>Full squeeze raw<small>Hardest grip</small></label>
           <input type="range" min="0" max="4095" data-k="full_press_raw"><input type="number" data-k="full_press_raw"></div>
         <div class="cal-row">
-          <button class="btn small" id="calRest">Set resting from live raw</button>
-          <button class="btn small" id="calFull">Set full squeeze from live raw</button>
+          <button class="btn small" id="calRest">Resting = live raw</button>
+          <button class="btn small" id="calFull">Full squeeze = live raw</button>
           <span class="hint">Live raw: <b class="mono" id="calRaw">—</b></span>
         </div>
+      </div>
+
+      <div class="group">
+        <h3>Detection</h3>
+        <div class="field"><label>Approach distance<small>Ultrasonic trigger range (cm)</small></label>
+          <input type="range" min="5" max="150" data-k="approach_cm"><input type="number" data-k="approach_cm"></div>
       </div>
 
       <div class="group">
@@ -197,9 +252,8 @@
       </div>
 
       <div class="group">
-        <h3>Audio</h3>
-        <label class="switch"><input type="checkbox" data-k="audio_enabled"> Play sound clips</label>
-        <div class="field"><label>Volume<small>0–30</small></label>
+        <h3>Volume</h3>
+        <div class="field"><label>Volume<small>0–30 (lower = less power draw)</small></label>
           <input type="range" min="0" max="30" data-k="volume"><input type="number" data-k="volume"></div>
       </div>
 
@@ -207,12 +261,28 @@
         <button class="btn primary" id="saveBtn" disabled>Save to device</button>
         <button class="btn" id="revertBtn">Revert</button>
         <button class="btn" id="defaultsBtn">Load defaults</button>
-        <span class="hint" id="saveHint">The device picks up changes within ~5 s.</span>
+        <span class="hint">The device picks up changes within ~3 s.</span>
       </div>
     </section>
   </div>
 
   <div class="stack">
+    <section class="card">
+      <h2>Diagnostics <span class="right hint" id="diagTime"></span></h2>
+      <div class="hint">Before running: keep hands <b>off the grip sensor</b>, and hold something about 30 cm in front of the ultrasonic.</div>
+      <div class="actions" style="margin-top:10px">
+        <button class="btn primary" id="selfTestBtn">▶ Run self-test</button>
+        <button class="btn danger small" id="rebootBtn">Reboot device</button>
+      </div>
+      <div id="diagRunning"></div>
+      <div class="checks" id="checks"></div>
+      <div class="group">
+        <h3>Sound test</h3>
+        <div class="clips" id="clips"></div>
+        <div class="hint" id="clipHint" style="margin-top:6px">Plays even when sound is switched off. If the device reboots when a clip plays, it's a power problem (see self-test).</div>
+      </div>
+    </section>
+
     <section class="card">
       <h2>Today</h2>
       <div class="stats">
@@ -226,6 +296,7 @@
         <span><i style="background:var(--nice)"></i>Nice <b id="cNice">0</b></span>
         <span><i style="background:var(--strong)"></i>Strong <b id="cStrong">0</b></span>
         <span><i style="background:var(--hard)"></i>Too hard <b id="cHard">0</b></span>
+        <span>Reboots <b id="cBoot">0</b></span>
       </div>
     </section>
 
@@ -236,7 +307,7 @@
 
     <section class="card">
       <h2>Use from other systems</h2>
-      <div class="hint">Other devices and pages can react to the same data. Events land in <span class="mono">handshake_events</span>, live state in <span class="mono">handshake_status</span>.</div>
+      <div class="hint">Events land in <span class="mono">handshake_events</span>, live state in <span class="mono">handshake_status</span>.</div>
       <details style="margin-top:10px"><summary>Web page (realtime, instant)</summary>
 <pre class="mono" id="snipJs"></pre><button class="btn small" data-copy="snipJs">Copy</button></details>
       <details style="margin-top:10px"><summary>ESP32 / Python (poll for new events)</summary>
@@ -245,18 +316,19 @@
 <pre class="mono">approach    someone came within range (distance_cm)
 hold_start  hand started gripping (force_pct)
 release     hand let go (hold_ms, force_pct)
-verdict     grip rated: verdict = too_soft | nice | strong | too_hard
+verdict     verdict = too_soft | nice | strong | too_hard
 nudge       nobody shook yet, reminder played
 timeout     reaction window ran out
 goodbye     goodbye clip played
-boot        device powered up
-enabled / disabled   system switched on/off from this page
+boot        device started (meta.reset = why)
+enabled / disabled   switched on/off from this page
 Every event in one interaction shares the same "session" number.</pre></details>
       <div class="actions"><button class="btn small" id="changePinBtn">Change PIN</button></div>
     </section>
   </div>
 </main>
 
+<!-- PIN -->
 <div class="modal" id="pinModal">
   <div class="card">
     <h2 id="pinTitle">Enter admin PIN</h2>
@@ -266,7 +338,21 @@ Every event in one interaction shares the same "session" number.</pre></details>
       <button class="btn primary" id="pinOk">OK</button>
       <button class="btn" id="pinCancel">Cancel</button>
     </div>
-    <div class="hint" id="pinErr" style="color:var(--bad)"></div>
+  </div>
+</div>
+
+<!-- Calibration wizard -->
+<div class="modal" id="wizModal">
+  <div class="card">
+    <h2>Auto-calibrate grip sensor</h2>
+    <div class="wiz-step active" id="ws1"><div class="n">1</div><div><b>Hands off</b><div class="hint">Don't touch the sensor. Measures 3 s.</div><div class="wiz-res" id="wr1"></div></div></div>
+    <div class="wiz-step" id="ws2"><div class="n">2</div><div><b>Squeeze hard</b><div class="hint">Press Start, then squeeze as hard as you can and keep squeezing for 3 s.</div><div class="wiz-res" id="wr2"></div></div></div>
+    <div class="wiz-step" id="ws3"><div class="n">3</div><div><b>Result</b><div class="wiz-res" id="wr3"></div></div></div>
+    <div id="wizRunning"></div>
+    <div class="actions">
+      <button class="btn primary" id="wizGo">Start step 1</button>
+      <button class="btn" id="wizClose">Cancel</button>
+    </div>
   </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -276,43 +362,43 @@ Every event in one interaction shares the same "session" number.</pre></details>
 const SUPABASE_URL = "https://ogxuwchojexznsxvvdhi.supabase.co";
 const SUPABASE_KEY = "sb_publishable_pB5HMEXMjVDQiNcWlenV1A_ETc2qaNP";
 const DEVICE_ID    = "handshake-1";
-const DEFAULTS = {enabled:true,audio_enabled:true,volume:25,approach_cm:40,no_press_raw:4095,full_press_raw:600,
-  soft_max:30,nice_max:75,strong_max:95,greeting_ms:1500,reaction_window_ms:6000,hold_verdict_ms:1000,cooldown_ms:2000};
+const DEFAULTS = {enabled:true,audio_enabled:true,volume:20,approach_cm:40,no_press_raw:4095,full_press_raw:600,
+  soft_max:30,nice_max:75,strong_max:95,greeting_ms:1500,reaction_window_ms:6000,hold_verdict_ms:1000,cooldown_ms:2000,
+  ultrasonic_enabled:true,greeting_enabled:true,direct_press_enabled:true,nudge_enabled:true,verdict_enabled:true,
+  goodbye_enabled:true,log_events:true,press_source:"ao",press_threshold_pct:10};
 const EDIT_KEYS = Object.keys(DEFAULTS).filter(k=>k!=="enabled");
+const CLIPS = {1:"Welcome",2:"Nudge",3:"Too soft",4:"Nice",5:"Strong",6:"Too hard",7:"Goodbye"};
 
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const $ = id => document.getElementById(id);
-
-let saved = null;      // settings as stored in Supabase
-let draft = null;      // what the form shows
-let status = null;
-let events = [];
-let filter = "all";
-let pin = null;
+let sb = null;
+let saved = null, draft = null, status = null, events = [], filter = "all", pin = null;
 try { pin = sessionStorage.getItem("hs_pin"); } catch(e) {}
 
 // ===== utils =====
-function toast(msg, err){ const t=$("toast"); t.textContent=msg; t.className="toast show"+(err?" err":""); clearTimeout(t._h); t._h=setTimeout(()=>t.className="toast",2600); }
+function toast(msg, err){ const t=$("toast"); t.textContent=msg; t.className="toast show"+(err?" err":""); clearTimeout(t._h); t._h=setTimeout(()=>t.className="toast",3000); }
 const fmtTime = d => new Date(d).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit",second:"2-digit"});
+const esc = s => String(s??"").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
 function verdictOf(f, s){ if(f<s.soft_max) return "too_soft"; if(f<s.nice_max) return "nice"; if(f<s.strong_max) return "strong"; return "too_hard"; }
 const VLABEL = {too_soft:"Too soft",nice:"Nice",strong:"Strong",too_hard:"Too hard"};
 const VCOLOR = {too_soft:"var(--soft)",nice:"var(--nice)",strong:"var(--strong)",too_hard:"var(--hard)"};
+function rawToPct(raw, s){ if(s.no_press_raw===s.full_press_raw) return 0; const p=(raw-s.no_press_raw)/(s.full_press_raw-s.no_press_raw)*100; return Math.max(0,Math.min(100,Math.round(p))); }
 function zonesHtml(s, labels){
   const w=[s.soft_max, s.nice_max-s.soft_max, s.strong_max-s.nice_max, 100-s.strong_max];
-  const k=["too_soft","nice","strong","too_hard"];
-  return k.map((v,i)=>`<div style="width:${Math.max(0,w[i])}%;background:${VCOLOR[v]}">${labels && w[i]>9?VLABEL[v]:""}</div>`).join("");
+  return ["too_soft","nice","strong","too_hard"].map((v,i)=>`<div style="width:${Math.max(0,w[i])}%;background:${VCOLOR[v]}">${labels && w[i]>9?VLABEL[v]:""}</div>`).join("");
 }
+function fmtUp(s){ if(s==null) return "—"; if(s<60) return s+"s"; if(s<3600) return Math.floor(s/60)+"m"; return Math.floor(s/3600)+"h"+String(Math.floor(s%3600/60)).padStart(2,"0"); }
 
-// ===== PIN modal =====
+// ===== PIN =====
 function askPin(mode="enter"){
   return new Promise(res=>{
     const m=$("pinModal"); m.classList.add("show");
     $("pinTitle").textContent = mode==="change" ? "Change admin PIN" : "Enter admin PIN";
     $("pinInput").placeholder = mode==="change" ? "Current PIN" : "PIN";
     $("pinNew").style.display = mode==="change" ? "block" : "none";
-    $("pinInput").value=""; $("pinNew").value=""; $("pinErr").textContent="";
+    $("pinInput").value=""; $("pinNew").value="";
     setTimeout(()=>$("pinInput").focus(),50);
-    const done = v => { m.classList.remove("show"); $("pinOk").onclick=$("pinCancel").onclick=null; $("pinInput").onkeydown=null; res(v); };
+    const done = v => { m.classList.remove("show"); $("pinOk").onclick=$("pinCancel").onclick=$("pinInput").onkeydown=null; res(v); };
     $("pinOk").onclick = () => done(mode==="change" ? {old:$("pinInput").value,neu:$("pinNew").value} : $("pinInput").value);
     $("pinCancel").onclick = () => done(null);
     $("pinInput").onkeydown = e => { if(e.key==="Enter" && mode!=="change") $("pinOk").click(); };
@@ -324,11 +410,9 @@ async function ensurePin(){
   pin = p; try{ sessionStorage.setItem("hs_pin", p); }catch(e){}
   updatePinBtn(); return pin;
 }
+function forgetPin(){ pin=null; try{sessionStorage.removeItem("hs_pin")}catch(e){}; updatePinBtn(); }
 function updatePinBtn(){ $("pinBtn").textContent = pin ? "🔓 PIN entered" : "🔒 Enter PIN"; }
-$("pinBtn").onclick = async () => {
-  if(pin){ pin=null; try{sessionStorage.removeItem("hs_pin")}catch(e){}; updatePinBtn(); toast("PIN forgotten on this tab"); }
-  else ensurePin();
-};
+$("pinBtn").onclick = () => { if(pin){ forgetPin(); toast("PIN forgotten on this tab"); } else ensurePin(); };
 $("changePinBtn").onclick = async () => {
   const r = await askPin("change"); if(!r) return;
   const { error } = await sb.rpc("handshake_change_pin", {p_old:r.old, p_new:r.neu});
@@ -340,21 +424,37 @@ $("changePinBtn").onclick = async () => {
 async function saveSettings(patch){
   const p = await ensurePin(); if(!p) return false;
   const { data, error } = await sb.rpc("handshake_save_settings", {p_pin:p, p_device:DEVICE_ID, p_patch:patch});
-  if(error){
-    if(/PIN/i.test(error.message)){ pin=null; try{sessionStorage.removeItem("hs_pin")}catch(e){}; updatePinBtn(); }
-    toast(error.message, true); return false;
-  }
+  if(error){ if(/PIN/i.test(error.message)) forgetPin(); toast(error.message, true); return false; }
   saved = data; return true;
 }
+
+// ===== commands to device =====
+// queue a command, then poll until the device reports back. onStage(stage) gets "waiting" | "running"
+async function runCommand(cmd, arg=null, onStage=()=>{}, timeoutMs=45000){
+  const p = await ensurePin(); if(!p) throw new Error("PIN needed");
+  const { data:id, error } = await sb.rpc("handshake_send_command", {p_pin:p, p_device:DEVICE_ID, p_cmd:cmd, p_arg:arg});
+  if(error){ if(/PIN/i.test(error.message)) forgetPin(); throw new Error(error.message); }
+  onStage("waiting");
+  const t0 = Date.now(); let lastStage = "waiting";
+  while(Date.now()-t0 < timeoutMs){
+    await sleep(700);
+    const { data } = await sb.from("handshake_commands").select("status,result").eq("id", id).single();
+    if(!data) continue;
+    if(data.status==="running" && lastStage!=="running"){ lastStage="running"; onStage("running"); }
+    if(data.status==="done") return data.result || {};
+    if(data.status==="error") throw new Error(data.result?.error || "device reported an error");
+  }
+  throw new Error("No answer from device — is it online?");
+}
+function runningHtml(text){ return `<div class="running"><span class="spin"></span>${text}</div>`; }
 
 // ===== settings form =====
 function bindForm(){
   document.querySelectorAll("[data-k]").forEach(el=>{
     const k = el.dataset.k;
-    el.addEventListener("input", ()=>{
+    el.addEventListener(el.tagName==="SELECT" || el.type==="checkbox" ? "change" : "input", ()=>{
       if(!draft) return;
-      draft[k] = el.type==="checkbox" ? el.checked : Number(el.value);
-      // keep thresholds ordered
+      draft[k] = el.type==="checkbox" ? el.checked : el.tagName==="SELECT" ? el.value : Number(el.value);
       if(k==="soft_max" && draft.soft_max>draft.nice_max) draft.nice_max=draft.soft_max;
       if(k==="nice_max"){ if(draft.nice_max<draft.soft_max) draft.soft_max=draft.nice_max; if(draft.nice_max>draft.strong_max) draft.strong_max=draft.nice_max; }
       if(k==="strong_max" && draft.strong_max<draft.nice_max) draft.nice_max=draft.strong_max;
@@ -362,6 +462,7 @@ function bindForm(){
     });
   });
 }
+function isDirty(){ return saved && draft && EDIT_KEYS.some(k=>draft[k]!==saved[k]); }
 function renderForm(except){
   if(!draft) return;
   document.querySelectorAll("[data-k]").forEach(el=>{
@@ -369,8 +470,9 @@ function renderForm(except){
     const v = draft[el.dataset.k];
     if(el.type==="checkbox") el.checked = !!v; else el.value = v;
   });
+  $("thrField").style.display = draft.press_source==="ao" ? "" : "none";
   $("zonePreview").innerHTML = zonesHtml(draft, true);
-  const dirty = EDIT_KEYS.some(k=>saved && draft[k]!==saved[k]);
+  const dirty = isDirty();
   $("saveBtn").disabled = !dirty;
   $("dirtyHint").textContent = dirty ? "● unsaved changes" : (saved ? "saved "+fmtTime(saved.updated_at) : "");
   $("dirtyHint").style.color = dirty ? "var(--accent)" : "";
@@ -378,10 +480,10 @@ function renderForm(except){
 }
 $("saveBtn").onclick = async () => {
   const patch = {}; EDIT_KEYS.forEach(k=>{ if(draft[k]!==saved[k]) patch[k]=draft[k]; });
-  if(await saveSettings(patch)){ draft = {...saved}; renderForm(); toast("Saved — device updates within ~5 s"); }
+  if(await saveSettings(patch)){ draft = {...saved}; renderForm(); toast("Saved — device updates within ~3 s"); }
 };
 $("revertBtn").onclick = () => { draft = {...saved}; renderForm(); };
-$("defaultsBtn").onclick = () => { EDIT_KEYS.forEach(k=>{ if(!k.endsWith("_raw")) draft[k]=DEFAULTS[k]; }); renderForm(); toast("Defaults loaded (calibration kept) — press Save"); };
+$("defaultsBtn").onclick = () => { EDIT_KEYS.forEach(k=>{ if(!/_raw$|press_/.test(k)) draft[k]=DEFAULTS[k]; }); renderForm(); toast("Defaults loaded (calibration kept) — press Save"); };
 $("calRest").onclick = () => { if(status?.raw==null) return toast("No live raw yet", true); draft.no_press_raw=status.raw; renderForm(); };
 $("calFull").onclick = () => { if(status?.raw==null) return toast("No live raw yet", true); draft.full_press_raw=status.raw; renderForm(); };
 
@@ -398,34 +500,183 @@ $("powerBtn").onclick = async () => {
 };
 
 // ===== live =====
+function isOnline(){ return status && (Date.now()-new Date(status.last_seen).getTime() < 12000); }
 function renderLive(){
-  const s = status;
-  const online = s && (Date.now()-new Date(s.last_seen).getTime() < 15000);
+  const s = status, online = isOnline();
   $("onlineDot").className = "dot " + (s ? (online?"on":"off") : "");
   $("onlineText").textContent = s ? (online ? "Device online" : "Device offline") : "No heartbeat yet";
-  $("deviceInfo").textContent = s ? `${DEVICE_ID} · ${s.fw||"?"} · ${s.ip||"?"} · ${s.rssi??"?"} dBm` : DEVICE_ID;
+  $("deviceInfo").textContent = s ? `${DEVICE_ID} · ${s.fw||"?"} · ${s.ip||"?"}` : DEVICE_ID;
   $("lastSeen").textContent = s ? "last update "+fmtTime(s.last_seen) : "";
   const cfg = draft || DEFAULTS;
   $("mkApproach").textContent = cfg.approach_cm;
   $("distMark").style.left = Math.min(100, cfg.approach_cm/150*100)+"%";
   $("liveZones").innerHTML = zonesHtml(cfg, false);
+  const ao = cfg.press_source==="ao";
+  $("thrMark").style.display = ao ? "" : "none";
+  $("thrMark").style.left = cfg.press_threshold_pct+"%";
+  $("thrLegend").textContent = ao ? `| press at ${cfg.press_threshold_pct}%` : "";
   if(!s) return;
   $("stateBadge").textContent = s.state || "—";
   $("stateBadge").style.color = s.state==="DISABLED" ? "var(--bad)" : (s.state==="IDLE" ? "var(--text)" : "var(--accent)");
-  $("lvDist").textContent = s.distance_cm>0 ? s.distance_cm+" cm" : "—";
+  $("lvDist").textContent = s.distance_cm>0 ? s.distance_cm+" cm" : (cfg.ultrasonic_enabled ? "no echo" : "off");
   $("lvForce").textContent = (s.force_pct??0)+"%";
   $("lvRaw").textContent = s.raw ?? "—";
   $("calRaw").textContent = s.raw ?? "—";
-  $("lvHand").textContent = s.pressed ? "✊ Gripping" : "—";
+  $("lvHand").textContent = s.pressed ? "✊ Pressed" : "—";
+  $("lvDo").textContent = s.do_level==null ? "—" : (s.do_level ? "HIGH" : "LOW");
+  $("lvAudio").innerHTML = s.audio_ok==null ? "—" : s.audio_ok ? `<span style="color:var(--ok)">OK</span> <span class="hint">${s.audio_files>=0?s.audio_files+" files":""}</span>` : `<span style="color:var(--bad)">Not found</span>`;
+  $("lvRssi").textContent = s.rssi!=null ? s.rssi+" dBm" : "—";
+  $("lvUp").textContent = fmtUp(s.uptime_s);
+  $("lvError").style.display = s.last_error ? "block" : "none";
+  $("lvError").textContent = s.last_error ? "⚠ " + s.last_error : "";
   $("distFill").style.width = (s.distance_cm>0 ? Math.min(100, s.distance_cm/150*100) : 0)+"%";
   $("forceNeedle").style.left = `calc(${s.force_pct||0}% - 2px)`;
   const v = verdictOf(s.force_pct||0, cfg);
   $("liveVerdict").innerHTML = s.pressed ? `<b style="color:${VCOLOR[v]}">${VLABEL[v]}</b>` : "";
 }
-setInterval(renderLive, 3000); // keeps the online/offline pill honest
+setInterval(renderLive, 3000);
+
+// ===== diagnostics =====
+function check(level, title, detail, fix){ return {level, title, detail, fix}; }
+const ICON = {pass:"✓", warn:"!", fail:"✕", info:"i"};
+function renderChecks(list){
+  $("checks").innerHTML = list.map(c=>`<div class="chk ${c.level}"><span class="ic">${ICON[c.level]}</span><div><b>${esc(c.title)}</b> — ${esc(c.detail)}${c.fix?`<div class="fix">→ ${esc(c.fix)}</div>`:""}</div></div>`).join("");
+}
+function analyseSelfTest(r){
+  const cfg = saved || DEFAULTS, out = [];
+  const f = r.force || {}, total = (f.do_high||0)+(f.do_low||0);
+  // DO pin
+  if(total){
+    const flick = f.do_high && f.do_low;
+    const idle = f.do_high > f.do_low ? "HIGH" : "LOW";
+    const pressedByDo = (cfg.press_source==="do_low" && f.do_low>0) || (cfg.press_source==="do_high" && f.do_high>0);
+    if(cfg.press_source!=="ao" && pressedByDo)
+      out.push(check("fail","Grip DO pin",`reads "pressed" with no hand (${idle}${flick?", flickering":""}). This causes phantom handshakes.`,
+        "Run Auto-calibrate — it will switch to analog detection if DO is unreliable on 3.3V."));
+    else if(flick) out.push(check(cfg.press_source==="ao"?"info":"warn","Grip DO pin",`flickers while untouched (HIGH ${f.do_high}, LOW ${f.do_low}).`,
+        cfg.press_source==="ao" ? "Not used (analog detection is on), so this is fine." : "Use analog detection (Auto-calibrate) or turn the module's blue pot."));
+    else out.push(check("pass","Grip DO pin",`steady ${idle} with no hand.`));
+  }
+  // AO
+  if(f.ao_avg!=null){
+    const pct = rawToPct(f.ao_avg, cfg), noise = f.ao_max - f.ao_min;
+    if(f.ao_avg<=5) out.push(check("fail","Grip analog (AO)","reads ~0.","Check the AO wire to GPIO 3 and that the module has 3V3."));
+    else if(cfg.press_source==="ao" && pct>=cfg.press_threshold_pct)
+      out.push(check("fail","Grip analog (AO)",`untouched = raw ${f.ao_avg} → ${pct}%, above the ${cfg.press_threshold_pct}% press threshold.`,"Run Auto-calibrate."));
+    else out.push(check(noise>250?"warn":"pass","Grip analog (AO)",`untouched raw ${f.ao_avg} (noise ±${Math.round(noise/2)}) → ${pct}% with current calibration.`,
+        noise>250 ? "Noisy — check wiring/ground; raise the press threshold." : ""));
+  }
+  // ultrasonic
+  const u = r.ultrasonic || {};
+  if(u.enabled===false) out.push(check("info","Ultrasonic","switched off in Functions."));
+  if(u.echo_idle) out.push(check("fail","Ultrasonic ECHO","stuck HIGH.","ECHO wire wrong or divider backwards: ECHO → 1k → GPIO 6, GPIO 6 → 2k → GND."));
+  else if(u.ok===0) out.push(check("fail","Ultrasonic",`0 of ${u.pings} pings came back.`,"Was something in front (< 2 m)? Check HC-SR04 has 5V, TRIG=GPIO 5, ECHO=GPIO 6, common GND."));
+  else if(u.ok<u.pings) out.push(check("warn","Ultrasonic",`${u.ok} of ${u.pings} pings OK (${u.min_cm}–${u.max_cm} cm).`,"Occasional misses are normal at an angle or on soft surfaces."));
+  else if(u.ok) out.push(check("pass","Ultrasonic",`${u.ok}/${u.pings} pings, ${u.min_cm}–${u.max_cm} cm.`));
+  // audio
+  const a = r.audio || {};
+  if(!a.ready) out.push(check("fail","DFPlayer","not responding.","Check 5V, DFPlayer TX → GPIO 10, GPIO 7 → 1k → DFPlayer RX, SD card inserted."));
+  else {
+    if(a.files!=null && a.files>=0 && a.files<7) out.push(check("warn","DFPlayer",`only ${a.files} files on SD card.`,"Need 0001.mp3 … 0007.mp3 (or in folder /mp3)."));
+    else out.push(check("pass","DFPlayer",`ready, ${a.files>=0?a.files+" files":"file count unknown"}, volume ${a.volume??"?"}.`));
+    if(a.enabled===false) out.push(check("info","Sound","master sound switch is OFF."));
+  }
+  // system
+  const s = r.system || {};
+  if(s.reset_reason==="BROWNOUT") out.push(check("fail","Power",`last restart was a BROWNOUT (power dip).`,
+    "Add a 470–1000 µF capacitor across DFPlayer VCC/GND, lower volume, use a 5V 2A supply instead of a PC USB port."));
+  else if(s.reset_reason) out.push(check("info","Last restart",`reason: ${s.reset_reason}, uptime ${fmtUp(s.uptime_s)}.`));
+  const boots = events.filter(e=>e.type==="boot" && Date.now()-new Date(e.created_at) < 3600e3).length;
+  if(boots>=3) out.push(check("fail","Reboots",`${boots} restarts in the last hour.`,
+    "Usually power: when the speaker plays, the 5V dips. Add a capacitor at the DFPlayer, lower the volume, use a stronger supply."));
+  if(s.rssi!=null) out.push(check(s.rssi<-80?"warn":"pass","WiFi",`${s.rssi} dBm${s.low_wifi_power?" (low TX power mode)":""}.`, s.rssi<-80?"Weak signal — move closer to the access point.":""));
+  if(s.last_error) out.push(check("warn","Last device message", s.last_error));
+  return out;
+}
+$("selfTestBtn").onclick = async () => {
+  $("selfTestBtn").disabled = true; $("checks").innerHTML = "";
+  try{
+    const r = await runCommand("self_test", null, st => {
+      $("diagRunning").innerHTML = runningHtml(st==="waiting" ? "Waiting for device to pick it up (≤3 s)…" : "Testing… hands off the grip sensor (~3 s)");
+    });
+    $("diagRunning").innerHTML = "";
+    renderChecks(analyseSelfTest(r));
+    $("diagTime").textContent = "tested "+fmtTime(new Date());
+  }catch(e){ $("diagRunning").innerHTML = ""; renderChecks([check("fail","Self-test", e.message)]); }
+  $("selfTestBtn").disabled = false;
+};
+$("rebootBtn").onclick = async () => {
+  try{ await runCommand("reboot"); toast("Device is rebooting…"); }catch(e){ toast(e.message, true); }
+};
+$("clips").innerHTML = Object.entries(CLIPS).map(([n,l])=>`<button class="btn small" data-clip="${n}" title="${l}">${n} · ${l}</button>`).join("") + `<button class="btn small danger" data-clip="stop">■ Stop</button>`;
+$("clips").onclick = async e => {
+  const b = e.target.closest("[data-clip]"); if(!b) return;
+  const n = b.dataset.clip; b.disabled = true;
+  try{
+    if(n==="stop") await runCommand("stop");
+    else { await runCommand("play", Number(n), st=>{ $("clipHint").textContent = st==="waiting" ? "Sending…" : "Playing…"; }); }
+    $("clipHint").textContent = n==="stop" ? "Stopped." : `Clip ${n} (${CLIPS[n]}) sent. Heard nothing? Check speaker wiring/volume; if the device reboots, it's power.`;
+  }catch(err){ $("clipHint").textContent = "✕ " + err.message; }
+  b.disabled = false;
+};
+
+// ===== calibration wizard =====
+let wiz = {step:1, idle:null, squeeze:null, rec:null};
+function wizStep(n){
+  wiz.step = n;
+  [1,2,3].forEach(i=>{ $("ws"+i).className = "wiz-step" + (i<n?" done":"") + (i===n?" active":""); });
+  $("wizGo").textContent = n===1 ? "Start step 1" : n===2 ? "Start — squeeze now" : "Apply & save";
+  $("wizGo").disabled = n===3 && !wiz.rec;
+}
+$("wizBtn").onclick = () => { wiz = {step:1,idle:null,squeeze:null,rec:null}; ["wr1","wr2","wr3"].forEach(i=>$(i).innerHTML=""); $("wizRunning").innerHTML=""; wizStep(1); $("wizModal").classList.add("show"); };
+$("wizClose").onclick = () => $("wizModal").classList.remove("show");
+function recommend(idle, sq){
+  const rest = idle.ao_avg;
+  const full = Math.abs(sq.ao_min-rest) > Math.abs(sq.ao_max-rest) ? sq.ao_min : sq.ao_max;
+  const range = Math.abs(full-rest);
+  const notes = [];
+  const idleTot = idle.do_high+idle.do_low, sqTot = sq.do_high+sq.do_low;
+  const idleSteadyHigh = idle.do_low===0, idleSteadyLow = idle.do_high===0;
+  const sqLowFrac = sq.do_low/Math.max(1,sqTot), sqHighFrac = sq.do_high/Math.max(1,sqTot);
+  let source = "ao";
+  if(idleSteadyHigh && sqLowFrac>0.85){ source="do_low"; notes.push("DO pin works cleanly (HIGH idle, LOW pressed)."); }
+  else if(idleSteadyLow && sqHighFrac>0.85){ source="do_high"; notes.push("DO pin works but reversed (LOW idle, HIGH pressed)."); }
+  else notes.push(`DO pin is unreliable (idle: HIGH ${idle.do_high}/LOW ${idle.do_low}, squeezed: HIGH ${sq.do_high}/LOW ${sq.do_low}) → using analog detection.`);
+  const noisePct = range ? (idle.ao_max-idle.ao_min)/range*100 : 100;
+  const thr = Math.max(5, Math.min(40, Math.round(noisePct*2+5)));
+  if(range<300) notes.push("⚠ The reading barely changes when squeezed — check the sensor and AO wiring before trusting this.");
+  return {patch:{no_press_raw:rest, full_press_raw:full, press_source:source, press_threshold_pct:thr}, range, notes};
+}
+$("wizGo").onclick = async () => {
+  if(wiz.step===3){
+    if(await saveSettings(wiz.rec.patch)){ draft = {...saved}; renderForm(); toast("Calibration saved"); $("wizModal").classList.remove("show"); }
+    return;
+  }
+  const cmd = wiz.step===1 ? "cal_idle" : "cal_squeeze";
+  $("wizGo").disabled = true;
+  try{
+    const r = await runCommand(cmd, null, st=>{
+      $("wizRunning").innerHTML = runningHtml(st==="waiting" ? "Waiting for device (≤3 s)…" : (wiz.step===1 ? "Measuring — hands off!" : "Measuring — keep squeezing!"));
+    });
+    $("wizRunning").innerHTML = "";
+    const f = r.force;
+    if(wiz.step===1){
+      wiz.idle = f; $("wr1").innerHTML = `raw ${f.ao_avg} (${f.ao_min}–${f.ao_max}), DO HIGH ${f.do_high} / LOW ${f.do_low}`;
+      wizStep(2);
+    } else {
+      wiz.squeeze = f; $("wr2").innerHTML = `raw ${f.ao_min}–${f.ao_max}, DO HIGH ${f.do_high} / LOW ${f.do_low}`;
+      wiz.rec = recommend(wiz.idle, wiz.squeeze);
+      const p = wiz.rec.patch;
+      $("wr3").innerHTML = `Resting <b class="mono">${p.no_press_raw}</b> · Full squeeze <b class="mono">${p.full_press_raw}</b><br>
+        Press detection: <b>${p.press_source==="ao"?`analog ≥ ${p.press_threshold_pct}%`:p.press_source==="do_low"?"DO LOW":"DO HIGH"}</b><br>${wiz.rec.notes.map(esc).join("<br>")}`;
+      wizStep(3);
+    }
+  }catch(e){ $("wizRunning").innerHTML = `<div class="hint" style="color:var(--bad)">✕ ${esc(e.message)}</div>`; }
+  $("wizGo").disabled = false;
+};
 
 // ===== events =====
-const TYPES = ["all","approach","hold_start","release","verdict","timeout"];
+const TYPES = ["all","approach","hold_start","release","verdict","timeout","boot"];
 $("filters").innerHTML = TYPES.map(t=>`<button class="chip${t==="all"?" on":""}" data-f="${t}">${t.replace("_"," ")}</button>`).join("");
 $("filters").onclick = e => { const f=e.target.dataset.f; if(!f) return; filter=f; document.querySelectorAll(".chip").forEach(c=>c.classList.toggle("on", c.dataset.f===f)); renderFeed(); };
 function evDetail(e){
@@ -434,15 +685,17 @@ function evDetail(e){
   if(e.force_pct!=null) p.push(`grip ${e.force_pct}%`);
   if(e.distance_cm!=null) p.push(`${e.distance_cm} cm`);
   if(e.hold_ms!=null) p.push(`held ${(e.hold_ms/1000).toFixed(1)} s`);
-  if(e.meta?.trigger) p.push(`on ${e.meta.trigger}`);
-  if(e.meta?.source) p.push(`from ${e.meta.source}`);
+  if(e.meta?.trigger) p.push(`on ${esc(e.meta.trigger)}`);
+  if(e.meta?.source) p.push(`from ${esc(e.meta.source)}`);
+  if(e.meta?.reset) p.push(`reason: <b style="color:${e.meta.reset==="BROWNOUT"?"var(--bad)":"inherit"}">${esc(e.meta.reset)}</b>`);
+  if(e.type==="boot" && e.meta?.audio!=null) p.push(`audio ${e.meta.audio?"OK":"<span style='color:var(--bad)'>missing</span>"}`);
   if(e.session) p.push(`<span class="hint">#${e.session}</span>`);
   return p.join(" · ");
 }
 function renderFeed(newId){
-  const list = events.filter(e=>filter==="all"||e.type===filter).slice(0,120);
+  const list = events.filter(e=>filter==="all"||e.type===filter).slice(0,150);
   $("feed").innerHTML = list.length ? list.map(e=>`<div class="ev${e.id===newId?" new":""}"><span class="t mono">${fmtTime(e.created_at)}</span><span class="tag ${e.type}">${e.type.replace("_"," ")}</span><span>${evDetail(e)}</span></div>`).join("")
-    : `<div class="hint">No events yet. Walk up to the sensor!</div>`;
+    : `<div class="hint">No events yet.</div>`;
 }
 function renderStats(){
   const start = new Date(); start.setHours(0,0,0,0);
@@ -453,6 +706,7 @@ function renderStats(){
   $("stAvg").textContent = verdicts.length ? Math.round(verdicts.reduce((a,e)=>a+(e.force_pct||0),0)/verdicts.length)+"%" : "—";
   const c = {too_soft:0,nice:0,strong:0,too_hard:0}; verdicts.forEach(e=>{ if(c[e.verdict]!=null) c[e.verdict]++; });
   $("cSoft").textContent=c.too_soft; $("cNice").textContent=c.nice; $("cStrong").textContent=c.strong; $("cHard").textContent=c.too_hard;
+  $("cBoot").textContent = today.filter(e=>e.type==="boot").length;
   const n = verdicts.length||1;
   $("stDist").innerHTML = Object.keys(c).map(k=>`<div style="width:${c[k]/n*100}%;background:${VCOLOR[k]}"></div>`).join("");
 }
@@ -479,7 +733,7 @@ Headers:
   apikey: ${SUPABASE_KEY}
   Authorization: Bearer ${SUPABASE_KEY}
 
-# live state (one row): is someone holding right now?
+# live state: is someone holding right now?
 GET ${SUPABASE_URL}/rest/v1/handshake_status?device_id=eq.${DEVICE_ID}&select=state,pressed,force_pct,distance_cm`;
 document.querySelectorAll("[data-copy]").forEach(b=>b.onclick=async()=>{
   try{ await navigator.clipboard.writeText($(b.dataset.copy).textContent); toast("Copied"); }catch(e){ toast("Copy blocked — select the text instead", true); }
@@ -490,28 +744,34 @@ async function load(){
   const [s, st, ev] = await Promise.all([
     sb.from("handshake_settings").select("*").eq("device_id", DEVICE_ID).single(),
     sb.from("handshake_status").select("*").eq("device_id", DEVICE_ID).maybeSingle(),
-    sb.from("handshake_events").select("*").eq("device_id", DEVICE_ID).order("id",{ascending:false}).limit(300),
+    sb.from("handshake_events").select("*").eq("device_id", DEVICE_ID).order("id",{ascending:false}).limit(400),
   ]);
   if(s.error){ toast("Could not load settings: "+s.error.message, true); return; }
   saved = s.data; draft = {...saved};
   status = st.data; events = ev.data || [];
   renderPower(); renderForm(); renderLive(); renderFeed(); renderStats();
 }
-sb.channel("handshake-ui")
-  .on("postgres_changes",{event:"INSERT",schema:"public",table:"handshake_events",filter:`device_id=eq.${DEVICE_ID}`}, ({new:e})=>{
-    events.unshift(e); events = events.slice(0,500); renderFeed(e.id); renderStats();
-  })
-  .on("postgres_changes",{event:"*",schema:"public",table:"handshake_status",filter:`device_id=eq.${DEVICE_ID}`}, ({new:s})=>{
-    status = s; renderLive();
-  })
-  .on("postgres_changes",{event:"UPDATE",schema:"public",table:"handshake_settings",filter:`device_id=eq.${DEVICE_ID}`}, ({new:s})=>{
-    const wasDirty = EDIT_KEYS.some(k=>saved && draft[k]!==saved[k]);
-    saved = s; if(!wasDirty) draft = {...s}; else draft.enabled = s.enabled;
-    renderPower(); renderForm();
-  })
-  .subscribe();
-
-bindForm(); updatePinBtn(); load();
+function start(){
+  if(!window.supabase){ toast("Could not load the Supabase library — check your internet", true); return; }
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  sb.channel("handshake-ui")
+    .on("postgres_changes",{event:"INSERT",schema:"public",table:"handshake_events",filter:`device_id=eq.${DEVICE_ID}`}, ({new:e})=>{
+      events.unshift(e); events = events.slice(0,600); renderFeed(e.id); renderStats();
+    })
+    .on("postgres_changes",{event:"*",schema:"public",table:"handshake_status",filter:`device_id=eq.${DEVICE_ID}`}, ({new:s})=>{
+      status = s; renderLive();
+    })
+    .on("postgres_changes",{event:"UPDATE",schema:"public",table:"handshake_settings",filter:`device_id=eq.${DEVICE_ID}`}, ({new:s})=>{
+      const keepDraft = isDirty();
+      saved = s; if(!keepDraft) draft = {...s}; else draft.enabled = s.enabled;
+      renderPower(); renderForm();
+    })
+    .subscribe();
+  // backup poll for status in case realtime drops
+  setInterval(async()=>{ const {data} = await sb.from("handshake_status").select("*").eq("device_id",DEVICE_ID).maybeSingle(); if(data){ status=data; renderLive(); } }, 10000);
+  load();
+}
+bindForm(); updatePinBtn(); start();
 </script>
 </body>
 </html>
