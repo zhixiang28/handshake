@@ -1,381 +1,517 @@
 <!DOCTYPE html>
-<html lang="zh"><head>
+<html lang="en">
+<head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-<title>Servo Press · 相机测距</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Handshake Control · Maker Space</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --line:#2a2f3a;
+    --text:#e8eaf0; --mute:#8b93a5; --accent:#ffb000; --ok:#2ecc71; --bad:#ff5a5f;
+    --soft:#5aa9ff; --nice:#2ecc71; --strong:#ffb000; --hard:#ff5a5f;
+    --r:14px;
+  }
   *{box-sizing:border-box}
-  body{margin:0;font-family:system-ui;background:#111;color:#eee}
-  header{display:flex;align-items:center;gap:8px;padding:10px 12px}
-  header b{flex:1;font-size:17px}
-  button{border:0;border-radius:10px;padding:10px 14px;font-size:16px;background:#2d6cdf;color:#fff}
-  button.sec{background:#333}
-  button.on{background:#2a9d55}
-  button:active{transform:scale(.96)}
-  button:disabled{opacity:.4}
-  #wrap{position:relative;width:100%;background:#000;touch-action:none;min-height:120px}
-  video{width:100%;display:block}
-  canvas{position:absolute;inset:0;width:100%;height:100%}
-  #tip{position:absolute;left:8px;top:8px;right:8px;background:#000a;padding:6px 10px;border-radius:8px;font-size:15px;pointer-events:none}
-  .modes{display:flex;gap:8px;padding:10px 12px 0}
-  .modes button{flex:1}
-  #big{display:flex;align-items:center;justify-content:space-between;padding:12px}
-  #ms{font-size:40px;font-weight:700;line-height:1.1}
-  #ms small{font-size:15px;color:#aaa;font-weight:400}
-  #press{font-size:22px;padding:16px 26px}
-  .fb{display:flex;gap:8px;padding:0 12px}
-  .fb button{flex:1;padding:14px 6px;font-size:17px}
-  #less{background:#b5462f} #more{background:#b5892f} #ok{background:#2a9d55}
-  #st{padding:8px 12px 0;color:#7c7;min-height:24px}
-  .card{background:#1d1d1d;border-radius:12px;padding:12px;margin:10px 12px}
-  .row{display:flex;gap:8px;align-items:center;margin:8px 0;flex-wrap:wrap}
-  input[type=number]{width:90px;font-size:17px;padding:8px;border-radius:8px;border:0}
-  label{font-size:15px}
-  summary{font-weight:700}
-  small.g{color:#888}
-  .ang{display:flex;align-items:center;gap:6px;margin:10px 0}
-  .ang span{width:34px;font-size:15px}
-  .ang input[type=range]{flex:1;accent-color:#2d6cdf;height:28px}
-  .ang input[type=number]{width:62px}
-  .pm{padding:8px 12px;font-size:18px}
-</style></head><body>
+  body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 "Space Grotesk",system-ui,sans-serif}
+  .mono{font-family:"JetBrains Mono",ui-monospace,monospace}
+  header{display:flex;align-items:center;gap:16px;padding:18px 24px;border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(15,17,21,.92);backdrop-filter:blur(8px);z-index:5;flex-wrap:wrap}
+  header h1{font-size:20px;margin:0;font-weight:700;letter-spacing:.2px}
+  header h1 span{color:var(--accent)}
+  .pill{display:inline-flex;align-items:center;gap:8px;padding:5px 12px;border-radius:99px;background:var(--panel2);border:1px solid var(--line);font-size:13px;color:var(--mute)}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--mute)}
+  .dot.on{background:var(--ok);box-shadow:0 0 10px var(--ok)}
+  .dot.off{background:var(--bad)}
+  .spacer{flex:1}
+  main{max-width:1200px;margin:0 auto;padding:22px;display:grid;grid-template-columns:1.1fr .9fr;gap:20px}
+  @media(max-width:900px){main{grid-template-columns:1fr;padding:14px}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px}
+  .card h2{font-size:13px;text-transform:uppercase;letter-spacing:1.4px;color:var(--mute);margin:0 0 14px;font-weight:500;display:flex;align-items:center;gap:10px}
+  .card h2 .right{margin-left:auto;text-transform:none;letter-spacing:0}
+  .stack{display:flex;flex-direction:column;gap:20px}
 
+  /* power */
+  .power{display:flex;align-items:center;gap:18px}
+  .big-toggle{flex-shrink:0;width:92px;height:48px;border-radius:99px;border:none;background:var(--panel2);position:relative;cursor:pointer;transition:.25s;outline:1px solid var(--line)}
+  .big-toggle::after{content:"";position:absolute;top:5px;left:5px;width:38px;height:38px;border-radius:50%;background:#555c6b;transition:.25s}
+  .big-toggle.on{background:rgba(46,204,113,.18);outline-color:var(--ok)}
+  .big-toggle.on::after{left:49px;background:var(--ok)}
+  .power .label{font-size:22px;font-weight:700}
+  .power .sub{color:var(--mute);font-size:13px}
+
+  /* live */
+  .state-badge{font-size:30px;font-weight:700;letter-spacing:.5px}
+  .live-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px}
+  @media(max-width:560px){.live-grid{grid-template-columns:repeat(2,1fr)}}
+  .stat{background:var(--panel2);border-radius:10px;padding:10px 12px}
+  .stat .k{font-size:12px;color:var(--mute)}
+  .stat .v{font-size:20px;font-weight:600}
+  .meter{margin-top:16px}
+  .meter .row{display:flex;justify-content:space-between;font-size:13px;color:var(--mute);margin-bottom:6px}
+  .bar{position:relative;height:16px;border-radius:8px;background:var(--panel2);overflow:hidden}
+  .bar .fill{position:absolute;inset:0 auto 0 0;width:0;background:var(--text);border-radius:8px;transition:width .3s}
+  .bar .mark{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--accent)}
+  .zones{display:flex;height:100%;opacity:.28}
+  .zones div{height:100%}
+  .force-wrap{position:relative}
+  .force-wrap .needle{position:absolute;top:-4px;bottom:-4px;width:4px;border-radius:2px;background:#fff;transition:left .3s;box-shadow:0 0 8px #fff}
+
+  /* settings */
+  .group{border-top:1px solid var(--line);padding-top:14px;margin-top:14px}
+  .group:first-of-type{border-top:none;margin-top:0;padding-top:0}
+  .group h3{margin:0 0 10px;font-size:15px;font-weight:600}
+  .field{display:grid;grid-template-columns:170px 1fr 78px;align-items:center;gap:12px;margin:10px 0}
+  @media(max-width:560px){.field{grid-template-columns:1fr 70px}.field input[type=range]{grid-column:1/3;grid-row:2}}
+  .field label{font-size:14px;color:var(--text)}
+  .field small{display:block;color:var(--mute);font-size:12px}
+  input[type=range]{width:100%;accent-color:var(--accent)}
+  input[type=number],input[type=password],input[type=text]{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:7px 9px;width:100%;font:inherit;font-family:"JetBrains Mono",monospace;font-size:14px}
+  .btn{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:9px;padding:8px 14px;font:inherit;font-size:14px;cursor:pointer}
+  .btn:hover{border-color:var(--mute)}
+  .btn.primary{background:var(--accent);color:#1a1300;border-color:var(--accent);font-weight:700}
+  .btn.primary:disabled{opacity:.4;cursor:default}
+  .btn.small{padding:5px 10px;font-size:12px}
+  .actions{display:flex;gap:10px;align-items:center;margin-top:18px;flex-wrap:wrap}
+  .hint{color:var(--mute);font-size:13px}
+  .switch{display:flex;align-items:center;gap:10px;margin:10px 0}
+  .zone-preview{display:flex;height:22px;border-radius:6px;overflow:hidden;margin:8px 0 4px;font-size:11px;font-weight:600;color:#000}
+  .zone-preview div{display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden;transition:width .2s}
+  .cal-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+
+  /* events */
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+  .dist{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--panel2);margin-bottom:6px}
+  .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--mute);margin-bottom:14px}
+  .legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px}
+  .feed{max-height:520px;overflow:auto;display:flex;flex-direction:column;gap:6px}
+  .ev{display:grid;grid-template-columns:64px 92px 1fr;gap:10px;align-items:center;padding:8px 10px;background:var(--panel2);border-radius:9px;font-size:13px}
+  .ev.new{animation:flash 1.2s}
+  @keyframes flash{from{background:rgba(255,176,0,.25)}to{background:var(--panel2)}}
+  .ev .t{color:var(--mute)}
+  .tag{font-weight:600;font-size:12px;padding:2px 8px;border-radius:99px;background:#2a2f3a;text-align:center}
+  .tag.approach{color:#5aa9ff}.tag.hold_start{color:#ffb000}.tag.release{color:#c39bff}
+  .tag.verdict{color:#2ecc71}.tag.timeout,.tag.disabled{color:#ff5a5f}.tag.enabled{color:#2ecc71}
+  .filters{display:flex;gap:6px;flex-wrap:wrap}
+  .chip{font-size:12px;padding:3px 9px;border-radius:99px;border:1px solid var(--line);background:none;color:var(--mute);cursor:pointer}
+  .chip.on{color:var(--text);border-color:var(--accent)}
+  pre{background:#0b0d10;border:1px solid var(--line);border-radius:10px;padding:12px;overflow:auto;font-size:12px;margin:8px 0}
+  details summary{cursor:pointer;color:var(--mute)}
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--panel2);border:1px solid var(--line);padding:10px 18px;border-radius:10px;transition:.3s;z-index:20}
+  .toast.show{transform:translateX(-50%) translateY(0)}
+  .toast.err{border-color:var(--bad)}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:30}
+  .modal.show{display:flex}
+  .modal .card{width:min(360px,92vw)}
+</style>
+</head>
+<body>
 <header>
-  <b>Servo Press</b>
-  <button id="cam" class="sec">开相机</button>
-  <button id="conn">连接蓝牙</button>
+  <h1>🤝 Handshake <span>Control</span></h1>
+  <span class="pill"><span class="dot" id="onlineDot"></span><span id="onlineText">Connecting…</span></span>
+  <span class="pill mono" id="deviceInfo">—</span>
+  <div class="spacer"></div>
+  <button class="btn small" id="pinBtn">🔒 Enter PIN</button>
 </header>
 
-<div id="wrap">
-  <video id="v" playsinline muted autoplay></video><canvas id="c"></canvas>
-  <div id="tip">先开相机</div>
-</div>
+<main>
+  <div class="stack">
+    <section class="card">
+      <h2>System</h2>
+      <div class="power">
+        <button class="big-toggle" id="powerBtn" aria-label="System on/off"></button>
+        <div>
+          <div class="label" id="powerLabel">—</div>
+          <div class="sub" id="powerSub">Turning off stops sound and events. The heartbeat keeps running.</div>
+        </div>
+      </div>
+    </section>
 
-<div class="modes">
-  <button id="mFrame" class="sec">① 画手机边框</button>
-  <button id="mLine" class="sec">② 画距离</button>
-</div>
+    <section class="card">
+      <h2>Live <span class="right hint" id="lastSeen"></span></h2>
+      <div class="state-badge" id="stateBadge">—</div>
+      <div class="live-grid">
+        <div class="stat"><div class="k">Distance</div><div class="v mono" id="lvDist">—</div></div>
+        <div class="stat"><div class="k">Grip force</div><div class="v mono" id="lvForce">—</div></div>
+        <div class="stat"><div class="k">Raw ADC</div><div class="v mono" id="lvRaw">—</div></div>
+        <div class="stat"><div class="k">Hand</div><div class="v" id="lvHand">—</div></div>
+      </div>
+      <div class="meter">
+        <div class="row"><span>Distance (0–150 cm)</span><span>trigger ≤ <b id="mkApproach">—</b> cm</span></div>
+        <div class="bar"><div class="fill" id="distFill" style="background:#5aa9ff"></div><div class="mark" id="distMark"></div></div>
+      </div>
+      <div class="meter">
+        <div class="row"><span>Grip force vs verdict zones</span><span id="liveVerdict"></span></div>
+        <div class="force-wrap">
+          <div class="bar"><div class="zones" id="liveZones"></div></div>
+          <div class="needle" id="forceNeedle" style="left:0"></div>
+        </div>
+      </div>
+    </section>
 
-<div id="big">
-  <div id="ms">— <small>ms</small><br><small id="dist">&nbsp;</small></div>
-  <button id="press">按！</button>
-</div>
+    <section class="card">
+      <h2>Settings <span class="right hint" id="dirtyHint"></span></h2>
 
-<div class="fb">
-  <button id="less">按太久 −</button>
-  <button id="ok">刚好 ✓</button>
-  <button id="more">按太短 +</button>
-</div>
-<div id="st"></div>
+      <div class="group">
+        <h3>Detection</h3>
+        <div class="field"><label>Approach distance<small>Ultrasonic trigger range</small></label>
+          <input type="range" min="5" max="150" data-k="approach_cm"><input type="number" data-k="approach_cm"></div>
+      </div>
 
-<div class="card">
-  <div class="row">
-    <label><input id="auto" type="checkbox"> 画完自动按</label>
+      <div class="group">
+        <h3>Grip calibration</h3>
+        <div class="hint">Raw ADC 0–4095. Leave the sensor untouched and press “Set resting”, then squeeze as hard as you can and press “Set full squeeze”.</div>
+        <div class="field"><label>Resting raw<small>No hand on sensor</small></label>
+          <input type="range" min="0" max="4095" data-k="no_press_raw"><input type="number" data-k="no_press_raw"></div>
+        <div class="field"><label>Full squeeze raw<small>Hardest grip</small></label>
+          <input type="range" min="0" max="4095" data-k="full_press_raw"><input type="number" data-k="full_press_raw"></div>
+        <div class="cal-row">
+          <button class="btn small" id="calRest">Set resting from live raw</button>
+          <button class="btn small" id="calFull">Set full squeeze from live raw</button>
+          <span class="hint">Live raw: <b class="mono" id="calRaw">—</b></span>
+        </div>
+      </div>
+
+      <div class="group">
+        <h3>Verdict sensitivity</h3>
+        <div class="zone-preview" id="zonePreview"></div>
+        <div class="field"><label>“Too soft” below<small>%</small></label>
+          <input type="range" min="0" max="100" data-k="soft_max"><input type="number" data-k="soft_max"></div>
+        <div class="field"><label>“Nice” below<small>%</small></label>
+          <input type="range" min="0" max="100" data-k="nice_max"><input type="number" data-k="nice_max"></div>
+        <div class="field"><label>“Strong” below<small>% (above = too hard)</small></label>
+          <input type="range" min="0" max="100" data-k="strong_max"><input type="number" data-k="strong_max"></div>
+      </div>
+
+      <div class="group">
+        <h3>Timing</h3>
+        <div class="field"><label>Greeting pause<small>ms after welcome clip</small></label>
+          <input type="range" min="0" max="5000" step="100" data-k="greeting_ms"><input type="number" data-k="greeting_ms"></div>
+        <div class="field"><label>Reaction window<small>ms to shake (nudge at half)</small></label>
+          <input type="range" min="1000" max="20000" step="500" data-k="reaction_window_ms"><input type="number" data-k="reaction_window_ms"></div>
+        <div class="field"><label>Hold for verdict<small>ms of gripping</small></label>
+          <input type="range" min="100" max="5000" step="100" data-k="hold_verdict_ms"><input type="number" data-k="hold_verdict_ms"></div>
+        <div class="field"><label>Cooldown<small>ms before next person</small></label>
+          <input type="range" min="0" max="15000" step="250" data-k="cooldown_ms"><input type="number" data-k="cooldown_ms"></div>
+      </div>
+
+      <div class="group">
+        <h3>Audio</h3>
+        <label class="switch"><input type="checkbox" data-k="audio_enabled"> Play sound clips</label>
+        <div class="field"><label>Volume<small>0–30</small></label>
+          <input type="range" min="0" max="30" data-k="volume"><input type="number" data-k="volume"></div>
+      </div>
+
+      <div class="actions">
+        <button class="btn primary" id="saveBtn" disabled>Save to device</button>
+        <button class="btn" id="revertBtn">Revert</button>
+        <button class="btn" id="defaultsBtn">Load defaults</button>
+        <span class="hint" id="saveHint">The device picks up changes within ~5 s.</span>
+      </div>
+    </section>
   </div>
-  <small class="g" id="info"></small>
-</div>
 
-<div class="card">
-  <details>
-    <summary>进阶设定</summary>
-    <div class="row">
-      <label>屏幕比例 (高÷宽) <input id="ar" type="number" step="0.01"></label>
+  <div class="stack">
+    <section class="card">
+      <h2>Today</h2>
+      <div class="stats">
+        <div class="stat"><div class="k">Approaches</div><div class="v mono" id="stApproach">0</div></div>
+        <div class="stat"><div class="k">Handshakes</div><div class="v mono" id="stShakes">0</div></div>
+        <div class="stat"><div class="k">Avg grip</div><div class="v mono" id="stAvg">—</div></div>
+      </div>
+      <div class="dist" id="stDist"></div>
+      <div class="legend">
+        <span><i style="background:var(--soft)"></i>Too soft <b id="cSoft">0</b></span>
+        <span><i style="background:var(--nice)"></i>Nice <b id="cNice">0</b></span>
+        <span><i style="background:var(--strong)"></i>Strong <b id="cStrong">0</b></span>
+        <span><i style="background:var(--hard)"></i>Too hard <b id="cHard">0</b></span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Event feed <span class="right"><span class="filters" id="filters"></span></span></h2>
+      <div class="feed" id="feed"></div>
+    </section>
+
+    <section class="card">
+      <h2>Use from other systems</h2>
+      <div class="hint">Other devices and pages can react to the same data. Events land in <span class="mono">handshake_events</span>, live state in <span class="mono">handshake_status</span>.</div>
+      <details style="margin-top:10px"><summary>Web page (realtime, instant)</summary>
+<pre class="mono" id="snipJs"></pre><button class="btn small" data-copy="snipJs">Copy</button></details>
+      <details style="margin-top:10px"><summary>ESP32 / Python (poll for new events)</summary>
+<pre class="mono" id="snipPoll"></pre><button class="btn small" data-copy="snipPoll">Copy</button></details>
+      <details style="margin-top:10px"><summary>Event types</summary>
+<pre class="mono">approach    someone came within range (distance_cm)
+hold_start  hand started gripping (force_pct)
+release     hand let go (hold_ms, force_pct)
+verdict     grip rated: verdict = too_soft | nice | strong | too_hard
+nudge       nobody shook yet, reminder played
+timeout     reaction window ran out
+goodbye     goodbye clip played
+boot        device powered up
+enabled / disabled   system switched on/off from this page
+Every event in one interaction shares the same "session" number.</pre></details>
+      <div class="actions"><button class="btn small" id="changePinBtn">Change PIN</button></div>
+    </section>
+  </div>
+</main>
+
+<div class="modal" id="pinModal">
+  <div class="card">
+    <h2 id="pinTitle">Enter admin PIN</h2>
+    <input type="password" id="pinInput" placeholder="PIN" autocomplete="current-password">
+    <input type="password" id="pinNew" placeholder="New PIN (min 4)" style="margin-top:8px;display:none">
+    <div class="actions">
+      <button class="btn primary" id="pinOk">OK</button>
+      <button class="btn" id="pinCancel">Cancel</button>
     </div>
-    <div class="row">
-      <label>k <input id="k" type="number" step="0.01"></label>
-      <label>b (ms) <input id="b" type="number" step="10"></label>
-      <button class="sec" id="resetStep">重置调整幅度</button>
-    </div>
-    <small class="g">按压时间 = 距离 × k + b。距离单位：手机屏幕宽 = 1000。</small>
-    <div class="row">
-      <input id="manual" type="number" placeholder="手动 ms">
-      <button class="sec" id="go">手动按</button>
-    </div>
-  </details>
+    <div class="hint" id="pinErr" style="color:var(--bad)"></div>
+  </div>
 </div>
-
-<div class="card">
-  <b>Servo 角度</b>
-  <small class="g">（拖动时 servo 会跟着转，调好按保存）</small>
-  <div class="ang">
-    <span>静止</span>
-    <button class="sec pm" data-t="ra" data-d="-1">−</button>
-    <input id="raS" type="range" min="0" max="180">
-    <button class="sec pm" data-t="ra" data-d="1">＋</button>
-    <input id="ra" type="number" min="0" max="180">
-  </div>
-  <div class="ang">
-    <span>压下</span>
-    <button class="sec pm" data-t="pa" data-d="-1">−</button>
-    <input id="paS" type="range" min="0" max="180">
-    <button class="sec pm" data-t="pa" data-d="1">＋</button>
-    <input id="pa" type="number" min="0" max="180">
-  </div>
-  <div class="row">
-    <button class="sec" id="toRest">去静止位</button>
-    <button class="sec" id="toPush">去压下位</button>
-    <button class="sec" id="tryP">试按 300ms</button>
-    <button id="saveA">保存</button>
-  </div>
-  <small class="g" id="angSt">未连接时显示的是上次保存的值</small>
-</div>
+<div class="toast" id="toast"></div>
 
 <script>
-const SVC='6e400001-b5a3-f393-e0a9-e50e24dcca9e',
-      RX ='6e400002-b5a3-f393-e0a9-e50e24dcca9e',
-      TX ='6e400003-b5a3-f393-e0a9-e50e24dcca9e';
-const $=id=>document.getElementById(id);
-const v=$('v'), c=$('c'), ctx=c.getContext('2d');
-const store={get(k,d){try{const x=localStorage.getItem('sp_'+k);return x===null?d:JSON.parse(x)}catch{return d}},
-             set(k,x){try{localStorage.setItem('sp_'+k,JSON.stringify(x))}catch{}}};
-const st=t=>$('st').textContent=t;
+// ===== config =====
+const SUPABASE_URL = "https://ogxuwchojexznsxvvdhi.supabase.co";
+const SUPABASE_KEY = "sb_publishable_pB5HMEXMjVDQiNcWlenV1A_ETc2qaNP";
+const DEVICE_ID    = "handshake-1";
+const DEFAULTS = {enabled:true,audio_enabled:true,volume:25,approach_cm:40,no_press_raw:4095,full_press_raw:600,
+  soft_max:30,nice_max:75,strong_max:95,greeting_ms:1500,reaction_window_ms:6000,hold_verdict_ms:1000,cooldown_ms:2000};
+const EDIT_KEYS = Object.keys(DEFAULTS).filter(k=>k!=="enabled");
 
-// ---------- 状态 ----------
-let rx=null;
-let mode='frame';
-let corners=store.get('corners',[]);   // 归一化画面坐标 [{x,y}] ×4：左上 右上 右下 左下
-let H=null;                            // 画面 → 手机屏幕坐标 的透视矩阵
-let line=null, drag=null, dragCorner=-1;
-let units=0, curMs=0;
-let last={ms:0,units:0};               // 上一次「用线」按的
-let step=store.get('step',0.10), lastDir=0;
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const $ = id => document.getElementById(id);
 
-$('k').value=store.get('k',1.0);
-$('b').value=store.get('b',0);
-$('ar').value=store.get('ar',2.17);
-$('auto').checked=store.get('auto',false);
-$('k').onchange=()=>{store.set('k',+$('k').value);calc();info()};
-$('b').onchange=()=>{store.set('b',+$('b').value);calc();info()};
-$('ar').onchange=()=>{store.set('ar',+$('ar').value);buildH();calc()};
-$('auto').onchange=()=>store.set('auto',$('auto').checked);
+let saved = null;      // settings as stored in Supabase
+let draft = null;      // what the form shows
+let status = null;
+let events = [];
+let filter = "all";
+let pin = null;
+try { pin = sessionStorage.getItem("hs_pin"); } catch(e) {}
 
-// ---------- 相机 ----------
-$('cam').onclick=async()=>{
-  try{
-    const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1280}},audio:false});
-    v.srcObject=s; await v.play(); $('cam').textContent='相机 ✓';
-    setMode(corners.length===4?'line':'frame');
-  }catch(e){st('相机打不开：'+e.message+'（要用 HTTPS 网址打开）')}
-};
-function resize(){const r=c.getBoundingClientRect();c.width=r.width*devicePixelRatio;c.height=r.height*devicePixelRatio;draw()}
-addEventListener('resize',resize); v.onloadedmetadata=()=>{resize();buildH()};
-
-// ---------- 模式 ----------
-function setMode(m){
-  mode=m;
-  $('mFrame').className=m==='frame'?'on':'sec';
-  $('mLine').className=m==='line'?'on':'sec';
-  tip(); draw();
-}
-$('mFrame').onclick=()=>{
-  if(mode==='frame'&&corners.length===4){ if(confirmReset())return; }
-  setMode('frame');
-};
-$('mLine').onclick=()=>{ if(corners.length<4){st('先点完手机屏幕 4 个角');return} setMode('line'); };
-function confirmReset(){ // 已经在边框模式再按一次 = 清掉重画
-  corners=[];H=null;store.set('corners',corners);tip();draw();st('边框已清除，重新点 4 个角');return true;
-}
-const NAMES=['左上','右上','右下','左下'];
-function tip(){
-  let t;
-  if(!v.srcObject) t='先开相机';
-  else if(mode==='frame') t=corners.length<4
-      ? `点手机屏幕的【${NAMES[corners.length]}】角 (${corners.length+1}/4)`
-      : '边框好了 ✓ 可以拖角微调；再按「①」可清除重画';
-  else t='从起点拉到终点';
-  $('tip').textContent=t;
+// ===== utils =====
+function toast(msg, err){ const t=$("toast"); t.textContent=msg; t.className="toast show"+(err?" err":""); clearTimeout(t._h); t._h=setTimeout(()=>t.className="toast",2600); }
+const fmtTime = d => new Date(d).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit",second:"2-digit"});
+function verdictOf(f, s){ if(f<s.soft_max) return "too_soft"; if(f<s.nice_max) return "nice"; if(f<s.strong_max) return "strong"; return "too_hard"; }
+const VLABEL = {too_soft:"Too soft",nice:"Nice",strong:"Strong",too_hard:"Too hard"};
+const VCOLOR = {too_soft:"var(--soft)",nice:"var(--nice)",strong:"var(--strong)",too_hard:"var(--hard)"};
+function zonesHtml(s, labels){
+  const w=[s.soft_max, s.nice_max-s.soft_max, s.strong_max-s.nice_max, 100-s.strong_max];
+  const k=["too_soft","nice","strong","too_hard"];
+  return k.map((v,i)=>`<div style="width:${Math.max(0,w[i])}%;background:${VCOLOR[v]}">${labels && w[i]>9?VLABEL[v]:""}</div>`).join("");
 }
 
-// ---------- 透视 (4 点 homography) ----------
-function solve(A,b){ // 高斯消去
-  const n=b.length;
-  for(let i=0;i<n;i++){
-    let p=i; for(let r=i+1;r<n;r++) if(Math.abs(A[r][i])>Math.abs(A[p][i])) p=r;
-    [A[i],A[p]]=[A[p],A[i]]; [b[i],b[p]]=[b[p],b[i]];
-    if(Math.abs(A[i][i])<1e-12) return null;
-    for(let r=i+1;r<n;r++){const f=A[r][i]/A[i][i]; for(let k=i;k<n;k++)A[r][k]-=f*A[i][k]; b[r]-=f*b[i];}
-  }
-  const x=Array(n).fill(0);
-  for(let i=n-1;i>=0;i--){let s=b[i]; for(let k=i+1;k<n;k++)s-=A[i][k]*x[k]; x[i]=s/A[i][i];}
-  return x;
-}
-function vidPx(p){return{x:p.x*(v.videoWidth||16),y:p.y*(v.videoHeight||9)}}
-function buildH(){
-  if(corners.length!==4){H=null;return}
-  const ar=+$('ar').value||2.17;
-  const dst=[[0,0],[1000,0],[1000,1000*ar],[0,1000*ar]];
-  const A=[],b=[];
-  corners.forEach((p,i)=>{
-    const {x,y}=vidPx(p), [u,w]=dst[i];
-    A.push([x,y,1,0,0,0,-u*x,-u*y]); b.push(u);
-    A.push([0,0,0,x,y,1,-w*x,-w*y]); b.push(w);
+// ===== PIN modal =====
+function askPin(mode="enter"){
+  return new Promise(res=>{
+    const m=$("pinModal"); m.classList.add("show");
+    $("pinTitle").textContent = mode==="change" ? "Change admin PIN" : "Enter admin PIN";
+    $("pinInput").placeholder = mode==="change" ? "Current PIN" : "PIN";
+    $("pinNew").style.display = mode==="change" ? "block" : "none";
+    $("pinInput").value=""; $("pinNew").value=""; $("pinErr").textContent="";
+    setTimeout(()=>$("pinInput").focus(),50);
+    const done = v => { m.classList.remove("show"); $("pinOk").onclick=$("pinCancel").onclick=null; $("pinInput").onkeydown=null; res(v); };
+    $("pinOk").onclick = () => done(mode==="change" ? {old:$("pinInput").value,neu:$("pinNew").value} : $("pinInput").value);
+    $("pinCancel").onclick = () => done(null);
+    $("pinInput").onkeydown = e => { if(e.key==="Enter" && mode!=="change") $("pinOk").click(); };
   });
-  const h=solve(A,b); H=h?[...h,1]:null;
 }
-function toScreen(p){ // 归一化画面坐标 → 手机屏幕坐标 (宽 1000)
-  const {x,y}=vidPx(p), w=H[6]*x+H[7]*y+H[8];
-  return{x:(H[0]*x+H[1]*y+H[2])/w, y:(H[3]*x+H[4]*y+H[5])/w};
+async function ensurePin(){
+  if(pin) return pin;
+  const p = await askPin(); if(!p) return null;
+  pin = p; try{ sessionStorage.setItem("hs_pin", p); }catch(e){}
+  updatePinBtn(); return pin;
 }
+function updatePinBtn(){ $("pinBtn").textContent = pin ? "🔓 PIN entered" : "🔒 Enter PIN"; }
+$("pinBtn").onclick = async () => {
+  if(pin){ pin=null; try{sessionStorage.removeItem("hs_pin")}catch(e){}; updatePinBtn(); toast("PIN forgotten on this tab"); }
+  else ensurePin();
+};
+$("changePinBtn").onclick = async () => {
+  const r = await askPin("change"); if(!r) return;
+  const { error } = await sb.rpc("handshake_change_pin", {p_old:r.old, p_new:r.neu});
+  if(error) return toast(error.message, true);
+  pin = r.neu; try{ sessionStorage.setItem("hs_pin", pin); }catch(e){}
+  updatePinBtn(); toast("PIN changed");
+};
 
-// ---------- 触控 ----------
-function pt(e){const r=c.getBoundingClientRect();return{x:(e.clientX-r.left)/r.width,y:(e.clientY-r.top)/r.height}}
-function nearCorner(p){
-  const r=c.getBoundingClientRect();
-  let best=-1,bd=30;
-  corners.forEach((q,i)=>{const d=Math.hypot((q.x-p.x)*r.width,(q.y-p.y)*r.height); if(d<bd){bd=d;best=i}});
-  return best;
-}
-c.onpointerdown=e=>{
-  if(!v.srcObject)return;
-  c.setPointerCapture(e.pointerId);
-  const p=pt(e);
-  if(mode==='frame'){
-    dragCorner=nearCorner(p);
-    if(dragCorner<0&&corners.length<4){corners.push(p);dragCorner=corners.length-1;}
-    afterCorner();
-  }else{
-    drag={a:p,b:p}; line=drag; draw();
+async function saveSettings(patch){
+  const p = await ensurePin(); if(!p) return false;
+  const { data, error } = await sb.rpc("handshake_save_settings", {p_pin:p, p_device:DEVICE_ID, p_patch:patch});
+  if(error){
+    if(/PIN/i.test(error.message)){ pin=null; try{sessionStorage.removeItem("hs_pin")}catch(e){}; updatePinBtn(); }
+    toast(error.message, true); return false;
   }
-};
-c.onpointermove=e=>{
-  const p=pt(e);
-  if(mode==='frame'&&dragCorner>=0){corners[dragCorner]=p;afterCorner();}
-  else if(drag){drag.b=p;calc();draw();}
-};
-c.onpointerup=()=>{
-  if(mode==='frame'){
-    dragCorner=-1; store.set('corners',corners);
-    if(corners.length===4&&!line){setTimeout(()=>setMode('line'),400)}
-    return;
-  }
-  if(!drag)return;
-  drag=null; calc(); draw();
-  if($('auto').checked&&units>5) pressLine();
-};
-function afterCorner(){buildH();calc();tip();draw();}
-
-// ---------- 计算 ----------
-function calc(){
-  if(!line||!H){units=0;curMs=0;showMs();return}
-  const a=toScreen(line.a), b=toScreen(line.b);
-  units=Math.hypot(b.x-a.x,b.y-a.y);
-  curMs=Math.max(0,Math.round(units*+$('k').value+ +$('b').value));
-  showMs();
+  saved = data; return true;
 }
-function showMs(){
-  $('ms').innerHTML=units?`${curMs} <small>ms</small><br><small>距离 ${units.toFixed(0)}（屏宽=1000）</small>`
-                         :`— <small>ms</small><br><small>&nbsp;</small>`;
-}
-function info(){$('info').textContent=`k = ${(+$('k').value).toFixed(3)}，b = ${+$('b').value} ms，下次调整幅度 ±${(step*100).toFixed(1)}%`}
 
-// ---------- 画 ----------
-function draw(){
-  ctx.clearRect(0,0,c.width,c.height);
-  const W=c.width,Hh=c.height,d=devicePixelRatio;
-  if(corners.length){
-    ctx.strokeStyle='#33d6ff'; ctx.lineWidth=3*d; ctx.beginPath();
-    corners.forEach((p,i)=>i?ctx.lineTo(p.x*W,p.y*Hh):ctx.moveTo(p.x*W,p.y*Hh));
-    if(corners.length===4)ctx.closePath(); ctx.stroke();
-    ctx.font=`${13*d}px system-ui`;
-    corners.forEach((p,i)=>{
-      ctx.fillStyle='#33d6ff'; ctx.beginPath(); ctx.arc(p.x*W,p.y*Hh,(mode==='frame'?10:5)*d,0,7); ctx.fill();
-      if(mode==='frame'){ctx.fillStyle='#000';ctx.fillText(i+1,p.x*W-4*d,p.y*Hh+4*d)}
+// ===== settings form =====
+function bindForm(){
+  document.querySelectorAll("[data-k]").forEach(el=>{
+    const k = el.dataset.k;
+    el.addEventListener("input", ()=>{
+      if(!draft) return;
+      draft[k] = el.type==="checkbox" ? el.checked : Number(el.value);
+      // keep thresholds ordered
+      if(k==="soft_max" && draft.soft_max>draft.nice_max) draft.nice_max=draft.soft_max;
+      if(k==="nice_max"){ if(draft.nice_max<draft.soft_max) draft.soft_max=draft.nice_max; if(draft.nice_max>draft.strong_max) draft.strong_max=draft.nice_max; }
+      if(k==="strong_max" && draft.strong_max<draft.nice_max) draft.nice_max=draft.strong_max;
+      renderForm(el);
     });
-  }
-  if(line){
-    const a={x:line.a.x*W,y:line.a.y*Hh},b={x:line.b.x*W,y:line.b.y*Hh};
-    ctx.lineWidth=4*d; ctx.strokeStyle='#ffdd33';
-    ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
-    for(const[p,col]of[[a,'#3c9'],[b,'#f55']]){ctx.fillStyle=col;ctx.beginPath();ctx.arc(p.x,p.y,8*d,0,7);ctx.fill()}
-  }
+  });
 }
-
-// ---------- 快/慢 校准 ----------
-// 每次按「太久/太短」：把上一次的按压时间 ±step，反推新的 k。
-// 方向跟上次相反 → step 减半（逐步逼近）。
-function feedback(dir){
-  if(!last.units){st('先用「画距离」按一次，再告诉我快了还是慢了');return}
-  if(lastDir&&dir!==lastDir) step=Math.max(0.01,step/2);
-  lastDir=dir;
-  const b=+$('b').value, newMs=last.ms*(1+dir*step);
-  const k=Math.max(0.001,(newMs-b)/last.units);
-  $('k').value=k.toFixed(4); store.set('k',k); store.set('step',step);
-  st(`${dir<0?'缩短':'加长'} ${(step*100).toFixed(1)}%：刚才那条线下次会按 ${Math.round(newMs)} ms`);
-  calc(); info();
+function renderForm(except){
+  if(!draft) return;
+  document.querySelectorAll("[data-k]").forEach(el=>{
+    if(el===except) return;
+    const v = draft[el.dataset.k];
+    if(el.type==="checkbox") el.checked = !!v; else el.value = v;
+  });
+  $("zonePreview").innerHTML = zonesHtml(draft, true);
+  const dirty = EDIT_KEYS.some(k=>saved && draft[k]!==saved[k]);
+  $("saveBtn").disabled = !dirty;
+  $("dirtyHint").textContent = dirty ? "● unsaved changes" : (saved ? "saved "+fmtTime(saved.updated_at) : "");
+  $("dirtyHint").style.color = dirty ? "var(--accent)" : "";
+  renderLive();
 }
-$('less').onclick=()=>feedback(-1);
-$('more').onclick=()=>feedback(+1);
-$('ok').onclick=()=>{step=Math.max(0.01,step/2);lastDir=0;store.set('step',step);st('👍 收窄调整幅度');info()};
-$('resetStep').onclick=()=>{step=0.10;lastDir=0;store.set('step',step);info();st('调整幅度重置为 ±10%')};
-
-// ---------- 蓝牙 ----------
-$('conn').onclick=async()=>{
-  if(!navigator.bluetooth){st('这个浏览器不支持 Web Bluetooth（用 Android / 电脑 Chrome；iPhone 用 Bluefy）');return}
-  try{
-    st('搜索中…');
-    const dev=await navigator.bluetooth.requestDevice({filters:[{services:[SVC]}]});
-    dev.addEventListener('gattserverdisconnected',()=>{rx=null;$('conn').className='';$('conn').textContent='连接蓝牙';st('蓝牙断开')});
-    const s=await (await dev.gatt.connect()).getPrimaryService(SVC);
-    rx=await s.getCharacteristic(RX);
-    const tx=await s.getCharacteristic(TX);
-    await tx.startNotifications();
-    tx.addEventListener('characteristicvaluechanged',e=>{
-      const m=new TextDecoder().decode(e.target.value);
-      if(m[0]==='D')st(`已回弹 ✓（${m.slice(1)} ms）结果怎样？用下面按钮告诉我`);
-      if(m[0]==='A'){const[r,p]=m.slice(1).split(',');setAng('ra',+r,false);setAng('pa',+p,false);$('angSt').textContent=`板子上的设定：静止 ${r}°，压下 ${p}°`}
-    });
-    $('conn').className='on';$('conn').textContent='已连接';st('已连接 '+dev.name);
-    send('G');
-  }catch(e){st('连接失败：'+e.message)}
+$("saveBtn").onclick = async () => {
+  const patch = {}; EDIT_KEYS.forEach(k=>{ if(draft[k]!==saved[k]) patch[k]=draft[k]; });
+  if(await saveSettings(patch)){ draft = {...saved}; renderForm(); toast("Saved — device updates within ~5 s"); }
 };
-async function send(cmd){
-  if(!rx){st('还没连接蓝牙');return false}
-  try{await rx.writeValueWithResponse(new TextEncoder().encode(cmd));return true}
-  catch(e){st('发送失败：'+e.message);return false}
+$("revertBtn").onclick = () => { draft = {...saved}; renderForm(); };
+$("defaultsBtn").onclick = () => { EDIT_KEYS.forEach(k=>{ if(!k.endsWith("_raw")) draft[k]=DEFAULTS[k]; }); renderForm(); toast("Defaults loaded (calibration kept) — press Save"); };
+$("calRest").onclick = () => { if(status?.raw==null) return toast("No live raw yet", true); draft.no_press_raw=status.raw; renderForm(); };
+$("calFull").onclick = () => { if(status?.raw==null) return toast("No live raw yet", true); draft.full_press_raw=status.raw; renderForm(); };
+
+// ===== power =====
+function renderPower(){
+  const on = !!saved?.enabled;
+  $("powerBtn").classList.toggle("on", on);
+  $("powerLabel").textContent = saved ? (on ? "System ON" : "System OFF") : "—";
+  $("powerLabel").style.color = on ? "var(--ok)" : "var(--bad)";
 }
-async function press(ms){
-  ms=Math.round(ms); if(!(ms>0)){st('按压时间要大于 0');return false}
-  if(await send('P'+ms)){st('按 '+ms+' ms…');return true}
-  return false;
+$("powerBtn").onclick = async () => {
+  if(!saved) return;
+  if(await saveSettings({enabled: !saved.enabled})){ draft.enabled = saved.enabled; renderPower(); toast(saved.enabled ? "Turned ON" : "Turned OFF"); }
+};
+
+// ===== live =====
+function renderLive(){
+  const s = status;
+  const online = s && (Date.now()-new Date(s.last_seen).getTime() < 15000);
+  $("onlineDot").className = "dot " + (s ? (online?"on":"off") : "");
+  $("onlineText").textContent = s ? (online ? "Device online" : "Device offline") : "No heartbeat yet";
+  $("deviceInfo").textContent = s ? `${DEVICE_ID} · ${s.fw||"?"} · ${s.ip||"?"} · ${s.rssi??"?"} dBm` : DEVICE_ID;
+  $("lastSeen").textContent = s ? "last update "+fmtTime(s.last_seen) : "";
+  const cfg = draft || DEFAULTS;
+  $("mkApproach").textContent = cfg.approach_cm;
+  $("distMark").style.left = Math.min(100, cfg.approach_cm/150*100)+"%";
+  $("liveZones").innerHTML = zonesHtml(cfg, false);
+  if(!s) return;
+  $("stateBadge").textContent = s.state || "—";
+  $("stateBadge").style.color = s.state==="DISABLED" ? "var(--bad)" : (s.state==="IDLE" ? "var(--text)" : "var(--accent)");
+  $("lvDist").textContent = s.distance_cm>0 ? s.distance_cm+" cm" : "—";
+  $("lvForce").textContent = (s.force_pct??0)+"%";
+  $("lvRaw").textContent = s.raw ?? "—";
+  $("calRaw").textContent = s.raw ?? "—";
+  $("lvHand").textContent = s.pressed ? "✊ Gripping" : "—";
+  $("distFill").style.width = (s.distance_cm>0 ? Math.min(100, s.distance_cm/150*100) : 0)+"%";
+  $("forceNeedle").style.left = `calc(${s.force_pct||0}% - 2px)`;
+  const v = verdictOf(s.force_pct||0, cfg);
+  $("liveVerdict").innerHTML = s.pressed ? `<b style="color:${VCOLOR[v]}">${VLABEL[v]}</b>` : "";
 }
-async function pressLine(){
-  if(!units){st('先画一条线');return}
-  if(await press(curMs)) last={ms:curMs,units};
+setInterval(renderLive, 3000); // keeps the online/offline pill honest
+
+// ===== events =====
+const TYPES = ["all","approach","hold_start","release","verdict","timeout"];
+$("filters").innerHTML = TYPES.map(t=>`<button class="chip${t==="all"?" on":""}" data-f="${t}">${t.replace("_"," ")}</button>`).join("");
+$("filters").onclick = e => { const f=e.target.dataset.f; if(!f) return; filter=f; document.querySelectorAll(".chip").forEach(c=>c.classList.toggle("on", c.dataset.f===f)); renderFeed(); };
+function evDetail(e){
+  const p=[];
+  if(e.verdict) p.push(`<b style="color:${VCOLOR[e.verdict]}">${VLABEL[e.verdict]}</b>`);
+  if(e.force_pct!=null) p.push(`grip ${e.force_pct}%`);
+  if(e.distance_cm!=null) p.push(`${e.distance_cm} cm`);
+  if(e.hold_ms!=null) p.push(`held ${(e.hold_ms/1000).toFixed(1)} s`);
+  if(e.meta?.trigger) p.push(`on ${e.meta.trigger}`);
+  if(e.meta?.source) p.push(`from ${e.meta.source}`);
+  if(e.session) p.push(`<span class="hint">#${e.session}</span>`);
+  return p.join(" · ");
 }
-$('press').onclick=pressLine;
-$('go').onclick=()=>press(+$('manual').value);
-// ---------- Servo 角度 ----------
-// 拖动时连续发 M<角度>；蓝牙一次只能送一个，忙的时候只留最新值
-let liveBusy=false, livePending=null;
-async function live(a){
-  if(!rx)return;
-  if(liveBusy){livePending=a;return}
-  liveBusy=true;
-  try{await rx.writeValueWithResponse(new TextEncoder().encode('M'+a))}catch(e){}
-  liveBusy=false;
-  if(livePending!==null){const n=livePending;livePending=null;live(n)}
+function renderFeed(newId){
+  const list = events.filter(e=>filter==="all"||e.type===filter).slice(0,120);
+  $("feed").innerHTML = list.length ? list.map(e=>`<div class="ev${e.id===newId?" new":""}"><span class="t mono">${fmtTime(e.created_at)}</span><span class="tag ${e.type}">${e.type.replace("_"," ")}</span><span>${evDetail(e)}</span></div>`).join("")
+    : `<div class="hint">No events yet. Walk up to the sensor!</div>`;
 }
-function setAng(id,a,move=true){
-  a=Math.max(0,Math.min(180,Math.round(a)||0));
-  $(id).value=a; $(id+'S').value=a; store.set(id,a);
-  if(move) live(a);
+function renderStats(){
+  const start = new Date(); start.setHours(0,0,0,0);
+  const today = events.filter(e=>new Date(e.created_at)>=start);
+  const verdicts = today.filter(e=>e.type==="verdict");
+  $("stApproach").textContent = today.filter(e=>e.type==="approach").length;
+  $("stShakes").textContent = verdicts.length;
+  $("stAvg").textContent = verdicts.length ? Math.round(verdicts.reduce((a,e)=>a+(e.force_pct||0),0)/verdicts.length)+"%" : "—";
+  const c = {too_soft:0,nice:0,strong:0,too_hard:0}; verdicts.forEach(e=>{ if(c[e.verdict]!=null) c[e.verdict]++; });
+  $("cSoft").textContent=c.too_soft; $("cNice").textContent=c.nice; $("cStrong").textContent=c.strong; $("cHard").textContent=c.too_hard;
+  const n = verdicts.length||1;
+  $("stDist").innerHTML = Object.keys(c).map(k=>`<div style="width:${c[k]/n*100}%;background:${VCOLOR[k]}"></div>`).join("");
 }
-setAng('ra',store.get('ra',0),false); setAng('pa',store.get('pa',90),false);
-['ra','pa'].forEach(id=>{
-  $(id+'S').oninput=()=>setAng(id,+$(id+'S').value);
-  $(id).onchange=()=>setAng(id,+$(id).value);
+
+// ===== snippets =====
+$("snipJs").textContent =
+`<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"><\/script>
+<script>
+const sb = supabase.createClient("${SUPABASE_URL}", "${SUPABASE_KEY}");
+sb.channel("handshake-listener")
+  .on("postgres_changes",
+      { event: "INSERT", schema: "public", table: "handshake_events" },
+      ({ new: e }) => {
+        if (e.type === "approach")   console.log("someone is near!", e.distance_cm);
+        if (e.type === "hold_start") console.log("hand gripped");
+        if (e.type === "verdict")    console.log("grip:", e.verdict, e.force_pct);
+      })
+  .subscribe();
+<\/script>`;
+$("snipPoll").textContent =
+`# every 1-2 s, ask for events newer than the last id you saw
+GET ${SUPABASE_URL}/rest/v1/handshake_events?id=gt.LAST_ID&order=id.asc
+Headers:
+  apikey: ${SUPABASE_KEY}
+  Authorization: Bearer ${SUPABASE_KEY}
+
+# live state (one row): is someone holding right now?
+GET ${SUPABASE_URL}/rest/v1/handshake_status?device_id=eq.${DEVICE_ID}&select=state,pressed,force_pct,distance_cm`;
+document.querySelectorAll("[data-copy]").forEach(b=>b.onclick=async()=>{
+  try{ await navigator.clipboard.writeText($(b.dataset.copy).textContent); toast("Copied"); }catch(e){ toast("Copy blocked — select the text instead", true); }
 });
-document.querySelectorAll('.pm').forEach(b=>b.onclick=()=>setAng(b.dataset.t,+$(b.dataset.t).value+ +b.dataset.d));
-$('toRest').onclick=()=>live(+$('ra').value);
-$('toPush').onclick=()=>live(+$('pa').value);
-$('saveA').onclick=async()=>{
-  if(await send(`A${+$('ra').value},${+$('pa').value}`)) st('角度已保存到板子 ✓');
-};
-$('tryP').onclick=async()=>{
-  // 先存再试，确保用的是现在的角度
-  if(await send(`A${+$('ra').value},${+$('pa').value}`)) setTimeout(()=>press(300),150);
-};
 
-info(); tip(); showMs();
+// ===== load + realtime =====
+async function load(){
+  const [s, st, ev] = await Promise.all([
+    sb.from("handshake_settings").select("*").eq("device_id", DEVICE_ID).single(),
+    sb.from("handshake_status").select("*").eq("device_id", DEVICE_ID).maybeSingle(),
+    sb.from("handshake_events").select("*").eq("device_id", DEVICE_ID).order("id",{ascending:false}).limit(300),
+  ]);
+  if(s.error){ toast("Could not load settings: "+s.error.message, true); return; }
+  saved = s.data; draft = {...saved};
+  status = st.data; events = ev.data || [];
+  renderPower(); renderForm(); renderLive(); renderFeed(); renderStats();
+}
+sb.channel("handshake-ui")
+  .on("postgres_changes",{event:"INSERT",schema:"public",table:"handshake_events",filter:`device_id=eq.${DEVICE_ID}`}, ({new:e})=>{
+    events.unshift(e); events = events.slice(0,500); renderFeed(e.id); renderStats();
+  })
+  .on("postgres_changes",{event:"*",schema:"public",table:"handshake_status",filter:`device_id=eq.${DEVICE_ID}`}, ({new:s})=>{
+    status = s; renderLive();
+  })
+  .on("postgres_changes",{event:"UPDATE",schema:"public",table:"handshake_settings",filter:`device_id=eq.${DEVICE_ID}`}, ({new:s})=>{
+    const wasDirty = EDIT_KEYS.some(k=>saved && draft[k]!==saved[k]);
+    saved = s; if(!wasDirty) draft = {...s}; else draft.enabled = s.enabled;
+    renderPower(); renderForm();
+  })
+  .subscribe();
+
+bindForm(); updatePinBtn(); load();
 </script>
-</body></html>
+</body>
+</html>
